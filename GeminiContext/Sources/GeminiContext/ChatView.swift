@@ -8,10 +8,12 @@ struct ChatView: View {
     let screenshotData: Data?
     let onDismiss: () -> Void
     var onResize: ((NSSize) -> Void)?
+    var initiallyExpanded: Bool = false
 
     @StateObject private var geminiService = GeminiService()
     @ObservedObject private var settings = SettingsManager.shared
     @ObservedObject private var history = ChatHistoryManager.shared
+    @ObservedObject private var floatingPanelManager = FloatingPanelManager.shared
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var streamingText = ""
@@ -24,6 +26,10 @@ struct ChatView: View {
     @FocusState private var isInputFocused: Bool
 
     @State private var showSidebar = false
+    @State private var searchText = ""
+    
+    // File drop support
+    @State private var attachments: [ChatAttachment] = []
 
     var body: some View {
         Group {
@@ -34,9 +40,19 @@ struct ChatView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+        .background(VisualEffectView(material: .popover, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 36))
-        .overlay(RoundedRectangle(cornerRadius: isExpanded ? 16 : 36).stroke(.white.opacity(0.15), lineWidth: 1))
+        .overlay(
+            RoundedRectangle(cornerRadius: isExpanded ? 16 : 36)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(0.4), .white.opacity(0.05)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
         .onAppear { 
             geminiService.selectedModel = settings.selectedModel
             if let lastSession = history.sessions.first {
@@ -47,6 +63,12 @@ struct ChatView: View {
             // Always set the newly captured screenshot as the active context
             if let newScreenshot = screenshotData {
                 editedScreenshotData = newScreenshot
+            }
+            
+            // If opened via full chat shortcut, expand immediately
+            if initiallyExpanded {
+                isExpanded = true
+                onResize?(NSSize(width: 480, height: 580))
             }
             
             // Auto focus the input field
@@ -124,6 +146,13 @@ struct ChatView: View {
                     .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
             }
             
+            Button(action: openFilePicker) {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            
             TextField("Ask about your screen...", text: $inputText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
@@ -158,6 +187,17 @@ struct ChatView: View {
         }
     }
 
+    private var filteredSessions: [ChatSession] {
+        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+            return history.sessions
+        }
+        let query = searchText.lowercased()
+        return history.sessions.filter { session in
+            session.title.lowercased().contains(query) ||
+            session.messages.contains { $0.content.lowercased().contains(query) }
+        }
+    }
+
     private var sidebarView: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Chat History")
@@ -165,12 +205,24 @@ struct ChatView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
+                
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search...", text: $searchText)
+                    .textFieldStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
             
             Divider().opacity(0.5)
             
             ScrollView {
                 LazyVStack(spacing: 4) {
-                    ForEach(history.sessions) { session in
+                    ForEach(filteredSessions) { session in
                         Button(action: { loadSession(session) }) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(session.title)
@@ -200,6 +252,7 @@ struct ChatView: View {
         currentSessionId = session.id
         messages = session.messages
         editedScreenshotData = session.screenshotData
+        attachments = session.attachments ?? []
     }
 
     // MARK: Title Bar
@@ -240,9 +293,26 @@ struct ChatView: View {
             
             Spacer()
             
-            Button(action: clearConversation) {
-                Image(systemName: "square.and.pencil").font(.system(size: 14)).foregroundStyle(.secondary)
-            }.buttonStyle(.plain).help("New Chat")
+            VStack(alignment: .trailing, spacing: 8) {
+                Button {
+                    floatingPanelManager.isPinned.toggle()
+                } label: {
+                    Image(systemName: floatingPanelManager.isPinned ? "pin.fill" : "pin")
+                        .font(.system(size: 12))
+                        .foregroundStyle(floatingPanelManager.isPinned ? .purple : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(floatingPanelManager.isPinned ? "Unpin Window" : "Pin Window")
+                .padding(.top, 2)
+                
+                Button(action: clearConversation) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("New Chat")
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
     }
@@ -388,26 +458,96 @@ struct ChatView: View {
 
     // MARK: Input Bar
     private var inputBar: some View {
-        HStack(spacing: 10) {
-            TextField("Ask about your screen...", text: $inputText)
-                .textFieldStyle(.plain).font(.system(size: 13))
-                .focused($isInputFocused)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 10))
-                .onSubmit { sendMessage() }.disabled(geminiService.isGenerating)
-            if geminiService.isGenerating {
-                Button { geminiService.cancelGeneration() } label: {
-                    Image(systemName: "stop.circle.fill").font(.system(size: 24)).foregroundStyle(.red.opacity(0.8))
-                }.buttonStyle(.plain)
-            } else {
-                Button(action: sendMessage) {
-                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 24))
-                        .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? AnyShapeStyle(.white.opacity(0.2))
-                            : AnyShapeStyle(.linearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                }.buttonStyle(.plain).disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
+        VStack(spacing: 0) {
+            if !attachments.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(attachments) { attachment in
+                            ZStack(alignment: .topTrailing) {
+                                VStack(spacing: 4) {
+                                    attachmentIcon(for: attachment)
+                                        .frame(width: 40, height: 40)
+                                        .background(.white.opacity(0.1))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    Text(attachment.name)
+                                        .font(.system(size: 9))
+                                        .lineLimit(1)
+                                        .frame(width: 50)
+                                }
+                                
+                                Button {
+                                    attachments.removeAll { $0.id == attachment.id }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.white, .gray)
+                                }
+                                .buttonStyle(.plain)
+                                .offset(x: 5, y: -5)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                Divider().opacity(0.2)
             }
-        }.padding(.horizontal, 14).padding(.vertical, 10)
+            
+            HStack(spacing: 12) {
+                Button(action: openFilePicker) {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                TextField("Ask anything...", text: $inputText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14))
+                    .focused($isInputFocused)
+                    .onSubmit(sendMessage)
+                
+                if geminiService.isGenerating {
+                    Button(action: { geminiService.cancelGeneration() }) {
+                        Image(systemName: "stop.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.red)
+                    }.buttonStyle(.plain)
+                } else {
+                    Button(action: sendMessage) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty 
+                                             ? AnyShapeStyle(.white.opacity(0.2)) 
+                                             : AnyShapeStyle(.linearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+    }
+    
+    private func attachmentIcon(for attachment: ChatAttachment) -> some View {
+        if attachment.mimeType.starts(with: "image/") {
+            if let img = NSImage(data: attachment.data) {
+                return AnyView(Image(nsImage: img).resizable().aspectRatio(contentMode: .fill))
+            }
+        }
+        
+        let icon: String
+        if attachment.mimeType == "application/pdf" {
+            icon = "doc.text.fill"
+        } else if attachment.mimeType.starts(with: "text/") {
+            icon = "doc.plaintext.fill"
+        } else {
+            icon = "doc.fill"
+        }
+        
+        return AnyView(Image(systemName: icon).font(.system(size: 20)).foregroundStyle(.secondary))
     }
 
     // MARK: Actions
@@ -431,6 +571,7 @@ struct ChatView: View {
         
         geminiService.streamGenerate(
             prompt: text, imageData: activeScreenshotData,
+            attachments: attachments,
             conversationHistory: Array(messages.dropLast()),
             onToken: { streamingText += $0 },
             onComplete: { result in
@@ -438,6 +579,7 @@ struct ChatView: View {
                 case .success(let full): 
                     messages.append(ChatMessage(role: .assistant, content: full))
                     streamingText = ""
+                    attachments.removeAll() // Clear after success
                     saveCurrentSession()
                 case .failure(let err): 
                     errorMessage = err.localizedDescription
@@ -455,7 +597,8 @@ struct ChatView: View {
             title: String(title) + (title.count == 30 ? "..." : ""),
             messages: messages,
             timestamp: Date(),
-            screenshotData: activeScreenshotData
+            screenshotData: activeScreenshotData,
+            attachments: attachments
         )
         history.saveSession(session)
     }
@@ -473,9 +616,46 @@ struct ChatView: View {
     private func clearConversation() {
         geminiService.cancelGeneration()
         messages.removeAll()
+        attachments.removeAll()
         streamingText = ""
         errorMessage = nil
         currentSessionId = UUID()
+    }
+    
+    // MARK: File Handling
+    private func openFilePicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                addFile(url: url)
+            }
+        }
+    }
+    
+    private func addFile(url: URL) {
+        guard let data = try? Data(contentsOf: url) else { return }
+        let name = url.lastPathComponent
+        let mimeType = getMimeType(for: url)
+        
+        withAnimation {
+            attachments.append(ChatAttachment(name: name, data: data, mimeType: mimeType))
+        }
+    }
+    
+    private func getMimeType(for url: URL) -> String {
+        let ext = url.pathExtension.lowercased()
+        switch ext {
+        case "jpg", "jpeg": return "image/jpeg"
+        case "png": return "image/png"
+        case "webp": return "image/webp"
+        case "pdf": return "application/pdf"
+        case "txt", "swift", "js", "ts", "py", "html", "css", "json", "md": return "text/plain"
+        default: return "application/octet-stream"
+        }
     }
 }
 
@@ -492,163 +672,331 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     }
 }
 
-// MARK: - MarkdownTextView (Native)
+// MARK: - MarkdownWebView (WKWebView-based rich renderer)
 
-/// Renders Markdown text using NSAttributedString with full support for
-/// headers, bold, italic, code, links, lists, and LaTeX (via code blocks).
-struct MarkdownTextView: View {
+/// Renders Markdown with syntax-highlighted code blocks (highlight.js) and
+/// LaTeX math (KaTeX) inside a WKWebView. Auto-resizes to fit content.
+struct MarkdownWebView: NSViewRepresentable {
     let text: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(parseBlocks(text).enumerated()), id: \.offset) { _, block in
-                switch block {
-                case .markdown(let str):
-                    Text(renderMarkdown(str))
-                        .font(.system(size: 13))
-                        .textSelection(.enabled)
-                case .codeBlock(let lang, let code):
-                    CodeBlockView(language: lang, code: code)
-                case .mathBlock(let expr):
-                    MathBlockView(expression: expr)
-                }
-            }
-        }
-    }
-
-    private func renderMarkdown(_ raw: String) -> AttributedString {
-        // Convert inline $...$ LaTeX to code spans for visual distinction
-        let processed = raw.replacingOccurrences(
-            of: "\\$([^$]+)\\$",
-            with: "`$1`",
-            options: .regularExpression
-        )
-        if let attr = try? AttributedString(markdown: processed, options: .init(interpretedSyntax: .full)) {
-            return attr
-        }
-        return AttributedString(raw)
-    }
-
-    // MARK: Block Parser
-    enum Block { case markdown(String); case codeBlock(String?, String); case mathBlock(String) }
-
-    private func parseBlocks(_ text: String) -> [Block] {
-        var blocks: [Block] = []
-        var current = ""
-        let lines = text.components(separatedBy: "\n")
-        var i = 0
-        while i < lines.count {
-            let line = lines[i]
-            if line.hasPrefix("```") {
-                if !current.isEmpty { blocks.append(.markdown(current.trimmingCharacters(in: .whitespacesAndNewlines))); current = "" }
-                let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
-                var code = ""
-                i += 1
-                while i < lines.count && !lines[i].hasPrefix("```") {
-                    if !code.isEmpty { code += "\n" }
-                    code += lines[i]; i += 1
-                }
-                if lang == "math" || lang == "latex" {
-                    blocks.append(.mathBlock(code))
-                } else {
-                    blocks.append(.codeBlock(lang.isEmpty ? nil : lang, code))
-                }
-                i += 1; continue
-            }
-            // Check for display math $$...$$
-            if line.trimmingCharacters(in: .whitespaces).hasPrefix("$$") {
-                if !current.isEmpty { blocks.append(.markdown(current.trimmingCharacters(in: .whitespacesAndNewlines))); current = "" }
-                var math = line.replacingOccurrences(of: "$$", with: "")
-                if math.contains("$$") { // single-line $$..$$
-                    math = math.replacingOccurrences(of: "$$", with: "")
-                    blocks.append(.mathBlock(math.trimmingCharacters(in: .whitespaces)))
-                    i += 1; continue
-                }
-                i += 1
-                while i < lines.count {
-                    let l = lines[i]
-                    if l.trimmingCharacters(in: .whitespaces).hasSuffix("$$") {
-                        math += "\n" + l.replacingOccurrences(of: "$$", with: "")
-                        break
-                    }
-                    math += "\n" + l; i += 1
-                }
-                blocks.append(.mathBlock(math.trimmingCharacters(in: .whitespacesAndNewlines)))
-                i += 1; continue
-            }
-            current += (current.isEmpty ? "" : "\n") + line
-            i += 1
-        }
-        if !current.isEmpty { blocks.append(.markdown(current.trimmingCharacters(in: .whitespacesAndNewlines))) }
-        return blocks
-    }
-}
-
-// MARK: - Code Block View
-
-struct CodeBlockView: View {
-    let language: String?
-    let code: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let lang = language {
-                HStack {
-                    Text(lang).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(.secondary)
-                    Spacer()
-                    Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(code, forType: .string) } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "doc.on.doc").font(.system(size: 10))
-                            Text("Copy").font(.system(size: 10))
-                        }.foregroundStyle(.secondary)
-                    }.buttonStyle(.plain)
-                }.padding(.horizontal, 10).padding(.vertical, 6).background(.black.opacity(0.2))
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(code).font(.system(size: 12, design: .monospaced)).foregroundStyle(.primary).textSelection(.enabled).padding(10)
-            }
-        }
-        .background(Color(nsColor: .init(white: 0.08, alpha: 1)))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-// MARK: - Math Block View (WKWebView + KaTeX)
-
-struct MathBlockView: NSViewRepresentable {
-    let expression: String
-
+    
     func makeNSView(context: Context) -> WKWebView {
+        let contentController = WKUserContentController()
+        contentController.add(context.coordinator, name: "resize")
+        contentController.add(context.coordinator, name: "copyCode")
+        
         let config = WKWebViewConfiguration()
-        let wv = WKWebView(frame: .zero, configuration: config)
+        config.userContentController = contentController
+        
+        let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 400, height: 20), configuration: config)
         wv.setValue(false, forKey: "drawsBackground")
         wv.navigationDelegate = context.coordinator
+        context.coordinator.webView = wv
         return wv
     }
-
+    
     func updateNSView(_ wv: WKWebView, context: Context) {
-        let html = """
-        <!DOCTYPE html><html><head>
+        let escaped = text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "`", with: "\\`")
+            .replacingOccurrences(of: "$", with: "\\$")
+        
+        let html = Self.buildHTML(markdownContent: escaped)
+        
+        // Only reload if content changed
+        if context.coordinator.lastText != text {
+            context.coordinator.lastText = text
+            wv.loadHTMLString(html, baseURL: nil)
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        weak var webView: WKWebView?
+        var lastText: String?
+        
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "resize", let height = message.body as? CGFloat {
+                DispatchQueue.main.async {
+                    guard let wv = self.webView else { return }
+                    let newHeight = max(height + 2, 20)
+                    if let constraint = wv.constraints.first(where: { $0.firstAttribute == .height }) {
+                        constraint.constant = newHeight
+                    } else {
+                        let c = wv.heightAnchor.constraint(equalToConstant: newHeight)
+                        c.priority = .defaultHigh
+                        c.isActive = true
+                    }
+                    wv.invalidateIntrinsicContentSize()
+                }
+            } else if message.name == "copyCode", let code = message.body as? String {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(code, forType: .string)
+            }
+        }
+        
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // After page loads, measure content height and post it
+            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
+                if let height = result as? CGFloat {
+                    DispatchQueue.main.async {
+                        guard let wv = self?.webView else { return }
+                        let newHeight = max(height + 2, 20)
+                        if let constraint = wv.constraints.first(where: { $0.firstAttribute == .height }) {
+                            constraint.constant = newHeight
+                        } else {
+                            let c = wv.heightAnchor.constraint(equalToConstant: newHeight)
+                            c.priority = .defaultHigh
+                            c.isActive = true
+                        }
+                        wv.invalidateIntrinsicContentSize()
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - HTML Template
+    
+    private static func buildHTML(markdownContent: String) -> String {
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
         <style>
-        body{margin:0;padding:8px;background:transparent;color:white;font-family:-apple-system;display:flex;justify-content:center;}
-        .katex{font-size:1.1em;}
-        </style></head><body>
-        <div id="math"></div>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+                font-size: 13px;
+                line-height: 1.6;
+                color: rgba(255,255,255,0.92);
+                background: transparent;
+                padding: 0;
+                -webkit-font-smoothing: antialiased;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            p { margin-bottom: 8px; }
+            p:last-child { margin-bottom: 0; }
+            
+            h1, h2, h3, h4, h5, h6 {
+                color: rgba(255,255,255,0.95);
+                font-weight: 600;
+                margin-top: 12px;
+                margin-bottom: 6px;
+                line-height: 1.3;
+            }
+            h1 { font-size: 18px; }
+            h2 { font-size: 16px; }
+            h3 { font-size: 14px; }
+            h4, h5, h6 { font-size: 13px; }
+            h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
+            
+            strong { color: rgba(255,255,255,0.98); font-weight: 600; }
+            em { font-style: italic; }
+            
+            a {
+                color: #7aadff;
+                text-decoration: none;
+            }
+            a:hover { text-decoration: underline; }
+            
+            code:not(pre code) {
+                background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 4px;
+                padding: 1px 5px;
+                font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+                font-size: 11.5px;
+                color: #e8b4f8;
+            }
+            
+            pre {
+                background: rgba(0,0,0,0.35);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
+                margin: 8px 0;
+                overflow: hidden;
+                position: relative;
+            }
+            pre code {
+                display: block;
+                padding: 12px 14px;
+                font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+                font-size: 11.5px;
+                line-height: 1.5;
+                overflow-x: auto;
+                color: rgba(255,255,255,0.88);
+                -webkit-overflow-scrolling: touch;
+            }
+            pre code.hljs { background: transparent; padding: 12px 14px; }
+            
+            .code-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 4px 10px;
+                background: rgba(0,0,0,0.25);
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+            }
+            .code-lang {
+                font-family: 'SF Mono', Menlo, monospace;
+                font-size: 10px;
+                color: rgba(255,255,255,0.4);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .copy-btn {
+                font-size: 10px;
+                color: rgba(255,255,255,0.4);
+                background: none;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 4px;
+                padding: 2px 8px;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .copy-btn:hover {
+                color: rgba(255,255,255,0.7);
+                border-color: rgba(255,255,255,0.2);
+                background: rgba(255,255,255,0.05);
+            }
+            
+            ul, ol {
+                margin: 6px 0;
+                padding-left: 20px;
+            }
+            li { margin-bottom: 3px; }
+            li > ul, li > ol { margin: 2px 0; }
+            
+            blockquote {
+                border-left: 3px solid rgba(130, 100, 255, 0.5);
+                margin: 8px 0;
+                padding: 4px 12px;
+                color: rgba(255,255,255,0.7);
+                background: rgba(130, 100, 255, 0.05);
+                border-radius: 0 6px 6px 0;
+            }
+            
+            table {
+                border-collapse: collapse;
+                margin: 8px 0;
+                width: 100%;
+                font-size: 12px;
+            }
+            th, td {
+                border: 1px solid rgba(255,255,255,0.1);
+                padding: 6px 10px;
+                text-align: left;
+            }
+            th {
+                background: rgba(255,255,255,0.05);
+                font-weight: 600;
+                color: rgba(255,255,255,0.8);
+            }
+            tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+            
+            hr {
+                border: none;
+                border-top: 1px solid rgba(255,255,255,0.1);
+                margin: 12px 0;
+            }
+            
+            .katex-display {
+                margin: 10px 0;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 4px 0;
+            }
+            .katex { font-size: 1.05em; }
+            
+            img { max-width: 100%; border-radius: 6px; }
+            
+            ::selection { background: rgba(130, 100, 255, 0.35); }
+        </style>
+        </head>
+        <body>
+        <div id="content"></div>
         <script>
-        try{katex.render(String.raw`\(expression.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "`", with: "\\`"))`,
-        document.getElementById('math'),{displayMode:true,throwOnError:false});}catch(e){document.getElementById('math').textContent=`\(expression)`;}
-        document.body.style.height=document.body.scrollHeight+'px';
-        window.webkit.messageHandlers.resize&&window.webkit.messageHandlers.resize.postMessage(document.body.scrollHeight);
-        </script></body></html>
+        (function() {
+            // Configure marked
+            marked.setOptions({
+                gfm: true,
+                breaks: false,
+                smartypants: true
+            });
+            
+            // Custom renderer for code blocks with copy button
+            const renderer = new marked.Renderer();
+            renderer.code = function(obj) {
+                const code = typeof obj === 'object' ? obj.text : obj;
+                const lang = typeof obj === 'object' ? obj.lang : arguments[1];
+                let highlighted;
+                try {
+                    if (lang && hljs.getLanguage(lang)) {
+                        highlighted = hljs.highlight(code, { language: lang }).value;
+                    } else {
+                        highlighted = hljs.highlightAuto(code).value;
+                    }
+                } catch(e) {
+                    highlighted = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
+                const escapedCode = code.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/\\n/g, '\\\\n');
+                const header = lang ? `<div class="code-header"><span class="code-lang">${lang}</span><button class="copy-btn" onclick="copyCode('${escapedCode}')">Copy</button></div>` : `<div class="code-header"><span class="code-lang"></span><button class="copy-btn" onclick="copyCode('${escapedCode}')">Copy</button></div>`;
+                return `${header}<pre><code class="hljs ${lang || ''}">${highlighted}</code></pre>`;
+            };
+            marked.use({ renderer: renderer });
+            
+            // Process LaTeX before marked parses the markdown
+            function processLaTeX(text) {
+                // Display math: $$...$$
+                text = text.replace(/\\$\\$([\\s\\S]*?)\\$\\$/g, function(match, expr) {
+                    try {
+                        return '<div class="katex-display">' + katex.renderToString(expr.trim(), {displayMode: true, throwOnError: false}) + '</div>';
+                    } catch(e) { return match; }
+                });
+                // Inline math: $...$  (but not \\$ escaped)
+                text = text.replace(/(?<!\\\\)\\$([^\\$\\n]+?)\\$/g, function(match, expr) {
+                    try {
+                        return katex.renderToString(expr.trim(), {displayMode: false, throwOnError: false});
+                    } catch(e) { return match; }
+                });
+                return text;
+            }
+            
+            function copyCode(code) {
+                const decoded = code.replace(/\\\\n/g, '\\n').replace(/\\\\'/g, "'").replace(/\\\\\\\\/g, '\\\\');
+                window.webkit.messageHandlers.copyCode.postMessage(decoded);
+            }
+            window.copyCode = copyCode;
+            
+            const raw = `\(markdownContent)`;
+            const withLaTeX = processLaTeX(raw);
+            document.getElementById('content').innerHTML = marked.parse(withLaTeX);
+            
+            // Notify height
+            setTimeout(function() {
+                window.webkit.messageHandlers.resize.postMessage(document.body.scrollHeight);
+            }, 50);
+            // Re-measure after fonts/images load
+            setTimeout(function() {
+                window.webkit.messageHandlers.resize.postMessage(document.body.scrollHeight);
+            }, 300);
+        })();
+        </script>
+        </body>
+        </html>
         """
-        wv.loadHTMLString(html, baseURL: nil)
     }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-    class Coordinator: NSObject, WKNavigationDelegate {}
 }
+
 
 // MARK: - Message Bubble
 
@@ -671,9 +1019,7 @@ struct MessageBubble: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.1), lineWidth: 0.5))
                 } else {
-                    MarkdownTextView(text: message.content)
-                        // MarkdownTextView should handle its own line spacing if possible,
-                        // but we can apply it to the view container if it supports it.
+                    MarkdownWebView(text: message.content)
                 }
             }
             
@@ -691,7 +1037,7 @@ struct StreamingBubble: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 0) {
-                MarkdownTextView(text: text)
+                MarkdownWebView(text: text)
             }
             Spacer(minLength: 40)
         }

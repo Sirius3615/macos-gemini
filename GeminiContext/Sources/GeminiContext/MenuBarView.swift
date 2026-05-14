@@ -80,7 +80,7 @@ struct MenuBarView: View {
             }) {
                 HStack {
                     Image(systemName: "gear")
-                    Text("Settings...")
+                    Text("Settings")
                 }
                 .font(.system(size: 13))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -93,7 +93,7 @@ struct MenuBarView: View {
             Button(action: { NSApplication.shared.terminate(nil) }) {
                 HStack {
                     Image(systemName: "power")
-                    Text("Quit AI Context")
+                    Text("Quit")
                 }
                 .font(.system(size: 13))
                 .frame(maxWidth: .infinity, alignment: .leading)

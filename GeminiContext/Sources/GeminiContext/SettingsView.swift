@@ -61,22 +61,51 @@ struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Launch at login", isOn: .constant(false))
+                Toggle("Launch at Login", isOn: $settings.launchAtLogin)
                     .toggleStyle(.switch)
-                    .disabled(true)
                 
                 Toggle("Enable Shake to Activate", isOn: $shakeDetector.isEnabled)
                     .toggleStyle(.switch)
                     .onChange(of: shakeDetector.isEnabled) { _, newValue in
                         settings.isShakeEnabled = newValue
                     }
-                
-                Toggle("Enable Global Keyboard Shortcut", isOn: $settings.isShortcutEnabled)
-                    .toggleStyle(.switch)
             } header: {
-                Text("Activation Behaviour")
+                Text("Activation")
+            }
+            
+            Section {
+                Toggle("Enable Global Keyboard Shortcuts", isOn: $settings.isShortcutEnabled)
+                    .toggleStyle(.switch)
+                
+                if settings.isShortcutEnabled {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Quick Pill")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Opens the compact input bar at cursor")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        KeyboardShortcutRecorder(shortcut: $settings.pillShortcut)
+                    }
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Full Chat")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Opens the expanded chat panel at cursor")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        KeyboardShortcutRecorder(shortcut: $settings.fullChatShortcut)
+                    }
+                }
+            } header: {
+                Text("Keyboard Shortcuts")
             } footer: {
-                Text("When enabled, you can quickly invoke the AI by either shaking your mouse or pressing Cmd+Shift+Space.")
+                Text("Click a shortcut to record a new key combination. At least one modifier key (⌘, ⌃, ⌥) is required.")
             }
             
             Section {

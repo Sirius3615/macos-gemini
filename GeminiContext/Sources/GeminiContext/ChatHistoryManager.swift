@@ -6,6 +6,7 @@ struct ChatSession: Identifiable, Codable, Equatable {
     var messages: [ChatMessage]
     var timestamp: Date
     var screenshotData: Data?
+    var attachments: [ChatAttachment]?
 }
 
 /// Manages saving and loading chat sessions to disk (Application Support).

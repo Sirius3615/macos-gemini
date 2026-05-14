@@ -3,25 +3,40 @@ import SwiftUI
 
 /// Manages the lifecycle of the floating AI chat panel.
 /// Ensures only one panel exists at a time.
-final class FloatingPanelManager: NSObject {
+final class FloatingPanelManager: NSObject, ObservableObject {
+    static let shared = FloatingPanelManager()
+    
+    @Published var isPinned = false {
+        didSet {
+            currentPanel?.level = isPinned ? .floating : .normal
+        }
+    }
+    
     private var currentPanel: FloatingPanel?
     private var eventMonitor: Any?
     private let expandedSize = NSSize(width: 480, height: 580)
     private let pillSize = NSSize(width: 500, height: 56)
 
+    private override init() {
+        super.init()
+    }
+
     @MainActor
-    func showPanel(at point: NSPoint, with screenshot: NSImage?, screenshotData: Data? = nil) {
-        dismissPanel()
+    func showPanel(at point: NSPoint, with screenshot: NSImage?, screenshotData: Data? = nil, expandImmediately: Bool = false) {
+        dismissPanel(force: true)
         
-        let initialSize = pillSize
+        // Reset pin state on new invocation
+        isPinned = false
+        
+        let initialSize = expandImmediately ? expandedSize : pillSize
         let startOrigin = calculatePanelOrigin(cursorPoint: point, size: initialSize)
         
         let panel = FloatingPanel(contentRect: NSRect(origin: startOrigin, size: initialSize))
-        let chatView = ChatView(
+        var chatView = ChatView(
             screenshot: screenshot,
             screenshotData: screenshotData,
             onDismiss: { [weak self] in
-                self?.dismissPanel()
+                self?.dismissPanel(force: true)
             },
             onResize: { [weak panel] newSize in
                 guard let panel = panel else { return }
@@ -41,6 +56,7 @@ final class FloatingPanelManager: NSObject {
                 panel.animator().setFrame(frame, display: true)
             }
         )
+        chatView.initiallyExpanded = expandImmediately
         let hostingView = NSHostingView(rootView: chatView)
         hostingView.layer?.cornerRadius = 16
         hostingView.layer?.masksToBounds = true
@@ -66,14 +82,18 @@ final class FloatingPanelManager: NSObject {
 
         let localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 {
-                self?.dismissPanel()
+                if self?.isPinned == false {
+                    self?.dismissPanel()
+                }
                 return nil
             }
             return event
         }
         
         let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.dismissPanel()
+            if self?.isPinned == false {
+                self?.dismissPanel()
+            }
         }
         
         // Store monitors as an array if needed, or create a struct. 
@@ -83,7 +103,9 @@ final class FloatingPanelManager: NSObject {
     }
 
     @MainActor
-    func dismissPanel() {
+    func dismissPanel(force: Bool = false) {
+        if isPinned && !force { return }
+        
         if let monitors = eventMonitor as? [Any] {
             for monitor in monitors {
                 if let m = monitor as? Any { // Safely unwrap

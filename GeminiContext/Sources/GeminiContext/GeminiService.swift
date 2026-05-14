@@ -31,6 +31,14 @@ enum GeminiModel: String, CaseIterable, Identifiable {
     }
 }
 
+/// Represents a file attachment in the chat (screenshot, dropped image, PDF, or code file).
+struct ChatAttachment: Identifiable, Equatable, Codable {
+    var id = UUID()
+    let name: String
+    let data: Data
+    let mimeType: String
+}
+
 /// Direct REST API client for Gemini with streaming SSE support.
 /// No Firebase dependency — uses raw URLSession against generativelanguage.googleapis.com.
 final class GeminiService: ObservableObject {
@@ -46,16 +54,10 @@ final class GeminiService: ObservableObject {
     // MARK: - Streaming Generation
 
     /// Sends a message with optional image context and streams the response token-by-token.
-    ///
-    /// - Parameters:
-    ///   - prompt: The user's text prompt.
-    ///   - imageData: Optional JPEG data of the screen capture.
-    ///   - conversationHistory: Previous messages for multi-turn context.
-    ///   - onToken: Called with each text chunk as it streams in.
-    ///   - onComplete: Called when generation finishes (with full text or error).
     func streamGenerate(
         prompt: String,
         imageData: Data?,
+        attachments: [ChatAttachment] = [],
         conversationHistory: [ChatMessage],
         onToken: @escaping @MainActor (String) -> Void,
         onComplete: @escaping @MainActor (Result<String, Error>) -> Void
@@ -78,6 +80,7 @@ final class GeminiService: ObservableObject {
                 let fullText = try await performStreamingRequest(
                     prompt: prompt,
                     imageData: imageData,
+                    attachments: attachments,
                     conversationHistory: conversationHistory,
                     apiKey: apiKey,
                     onToken: onToken
@@ -109,6 +112,7 @@ final class GeminiService: ObservableObject {
     private func performStreamingRequest(
         prompt: String,
         imageData: Data?,
+        attachments: [ChatAttachment],
         conversationHistory: [ChatMessage],
         apiKey: String,
         onToken: @escaping @MainActor (String) -> Void
@@ -131,6 +135,7 @@ final class GeminiService: ObservableObject {
         let body = buildRequestBody(
             prompt: prompt,
             imageData: imageData,
+            attachments: attachments,
             conversationHistory: conversationHistory
         )
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -181,6 +186,7 @@ final class GeminiService: ObservableObject {
     private func buildRequestBody(
         prompt: String,
         imageData: Data?,
+        attachments: [ChatAttachment],
         conversationHistory: [ChatMessage]
     ) -> [String: Any] {
 
@@ -198,7 +204,7 @@ final class GeminiService: ObservableObject {
         // Build current user message parts
         var parts: [[String: Any]] = []
 
-        // Add image if available
+        // Add screenshot if available
         if let imageData = imageData {
             parts.append([
                 "inline_data": [
@@ -206,10 +212,30 @@ final class GeminiService: ObservableObject {
                     "data": imageData.base64EncodedString()
                 ]
             ])
-            parts.append(["text": "Here is a screenshot of my current screen. \(prompt)"])
-        } else {
-            parts.append(["text": prompt])
         }
+        
+        // Add other attachments
+        for attachment in attachments {
+            parts.append([
+                "inline_data": [
+                    "mime_type": attachment.mimeType,
+                    "data": attachment.data.base64EncodedString()
+                ]
+            ])
+        }
+
+        // Final text part
+        var finalPrompt = prompt
+        if imageData != nil || !attachments.isEmpty {
+            var contextDesc = ""
+            if imageData != nil { contextDesc += "a screenshot of my current screen" }
+            if !attachments.isEmpty {
+                if !contextDesc.isEmpty { contextDesc += " and " }
+                contextDesc += "\(attachments.count) attached file(s)"
+            }
+            finalPrompt = "Here is \(contextDesc). \(prompt)"
+        }
+        parts.append(["text": finalPrompt])
 
         contents.append([
             "role": "user",

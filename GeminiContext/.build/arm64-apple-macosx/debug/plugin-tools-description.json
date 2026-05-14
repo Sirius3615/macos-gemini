@@ -52,6 +52,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/KeyboardShortcutRecorder.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift"
         },
         {
@@ -98,6 +102,7 @@
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.swift.o",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.swift.o",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.swift.o",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.swift.o",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.swift.o",
@@ -127,7 +132,6 @@
         "-entry-point-function-name",
         "-Xfrontend",
         "GeminiContext_main",
-        "-color-diagnostics",
         "-swift-version",
         "5",
         "-plugin-path",
@@ -194,6 +198,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o"
         },
         {
@@ -234,6 +242,7 @@
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/KeyboardShortcutRecorder.swift",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift",
         "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift",
@@ -264,6 +273,7 @@
       "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift",
       "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift",
       "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/KeyboardShortcutRecorder.swift",
       "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift",
       "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift",
       "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift",
@@ -293,7 +303,6 @@
       "-entry-point-function-name",
       "-Xfrontend",
       "GeminiContext_main",
-      "-color-diagnostics",
       "-swift-version",
       "5",
       "-plugin-path",
@@ -399,6 +408,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/KeyboardShortcutRecorder.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift"
         },
         {
@@ -462,6 +475,10 @@
         {
           "kind" : "file",
           "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.swift.o"
         },
         {
           "kind" : "file",

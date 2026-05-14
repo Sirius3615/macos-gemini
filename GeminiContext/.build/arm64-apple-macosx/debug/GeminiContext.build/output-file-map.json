@@ -51,6 +51,13 @@
     "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swiftdeps",
     "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.dia"
   },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/KeyboardShortcutRecorder.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.dia"
+  },
   "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift": {
     "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.d",
     "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o",
