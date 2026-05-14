@@ -1,0 +1,512 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.GeminiContext-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/sources",
+      "importPath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatHistoryManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenshotEditorView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ShakeDetector.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "GeminiContext",
+      "moduleOutputPath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/Modules/GeminiContext.swiftmodule",
+      "objects" : [
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.swift.o",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "GeminiContext_main",
+        "-color-diagnostics",
+        "-swift-version",
+        "5",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "geminicontext"
+      ],
+      "outputFileMapPath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/Modules/GeminiContext.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AppDelegate.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatHistoryManager.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatView.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanel.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenshotEditorView.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsManager.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsView.swift",
+        "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ShakeDetector.swift"
+      ],
+      "tempsPath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "GeminiContext" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "GeminiContext",
+      "-package-name",
+      "geminicontext",
+      "-c",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AppDelegate.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatHistoryManager.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatView.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanel.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenshotEditorView.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsManager.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsView.swift",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ShakeDetector.swift",
+      "-I",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "GeminiContext_main",
+      "-color-diagnostics",
+      "-swift-version",
+      "5",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "geminicontext",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "GeminiContext" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext-entitlement.plist" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<entitlement-plist>"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<com.apple.security.get-task-allow>"
+        }
+      ],
+      "outputFilePath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext-entitlement.plist"
+    },
+    "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatHistoryManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenshotEditorView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ShakeDetector.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/sources"
+    },
+    "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.product/Objects.LinkFileList"
+    },
+    "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

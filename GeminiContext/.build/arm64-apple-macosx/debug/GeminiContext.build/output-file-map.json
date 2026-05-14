@@ -1,0 +1,103 @@
+{
+  "": {
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/master.swiftdeps"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AppDelegate.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatHistoryManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatView.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanel.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanelManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanelManager.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiContextApp.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiContextApp.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/GeminiService.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/GeminiService.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenCaptureManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenCaptureManager.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ScreenshotEditorView.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ScreenshotEditorView.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsManager.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/SettingsView.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/SettingsView.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ShakeDetector.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ShakeDetector.dia"
+  }
+}

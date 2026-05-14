@@ -1,0 +1,138 @@
+import SwiftUI
+
+/// The view displayed in the MenuBarExtra popover.
+/// Shows permission status, API key config, model selection, and a quit button.
+struct MenuBarView: View {
+    @Environment(\.openWindow) private var openWindow
+    @EnvironmentObject var permissions: PermissionsManager
+    @EnvironmentObject var shakeDetector: ShakeDetector
+    @ObservedObject private var settings = SettingsManager.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.purple)
+                Text("AI Context")
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+
+            Divider()
+
+            // Permissions section
+            VStack(alignment: .leading, spacing: 8) {
+                if permissions.isAccessibilityGranted && permissions.isScreenRecordingGranted {
+                    HStack {
+                        Image(systemName: "checkmark.shield.fill")
+                            .foregroundStyle(.green)
+                        Text("Permissions Active")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                } else {
+                    Text("Permissions Required")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .textCase(.uppercase)
+
+                    permissionRow(
+                        title: "Accessibility",
+                        icon: "hand.point.up.braille",
+                        isGranted: permissions.isAccessibilityGranted,
+                        action: permissions.openAccessibilitySettings
+                    )
+
+                    permissionRow(
+                        title: "Screen Recording",
+                        icon: "rectangle.dashed.badge.record",
+                        isGranted: permissions.isScreenRecordingGranted,
+                        action: permissions.openScreenRecordingSettings
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            // Status
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(shakeDetector.isMonitoring ? .green : .orange)
+                    .frame(width: 7, height: 7)
+                Text(shakeDetector.isMonitoring ? "Monitoring active" : "Not monitoring")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            // Settings button
+            Button(action: {
+                NSApp.activate(ignoringOtherApps: true)
+                openWindow(id: "settings")
+            }) {
+                HStack {
+                    Image(systemName: "gear")
+                    Text("Settings...")
+                }
+                .font(.system(size: 13))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+
+            // Quit button
+            Button(action: { NSApplication.shared.terminate(nil) }) {
+                HStack {
+                    Image(systemName: "power")
+                    Text("Quit AI Context")
+                }
+                .font(.system(size: 13))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .padding(.bottom, 4)
+        }
+        .frame(width: 300)
+    }
+
+    private func permissionRow(
+        title: String,
+        icon: String,
+        isGranted: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .frame(width: 20)
+                .foregroundStyle(isGranted ? .green : .orange)
+
+            Text(title)
+                .font(.system(size: 13))
+
+            Spacer()
+
+            if isGranted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.green)
+            } else {
+                Button("Grant") { action() }
+                    .font(.system(size: 11, weight: .medium))
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+    }
+}

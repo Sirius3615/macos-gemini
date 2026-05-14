@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>GeminiContext</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.geminicontext.app</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleExecutable</key>
+	<string>GeminiContext</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>GeminiContext needs Screen Recording access to capture screen context when you trigger the AI assistant with a mouse shake.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>GeminiContext needs Accessibility access to detect mouse shake gestures globally.</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>AIzaSyB8TsP7zcDqaae0mk7HsDjhjz23NCJ6su8</string>
+</dict>
+</plist>
