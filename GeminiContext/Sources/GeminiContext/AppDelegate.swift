@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let shakeDetector = ShakeDetector()
     let screenCaptureManager = ScreenCaptureManager()
     let floatingPanelManager = FloatingPanelManager.shared
+    let activeWindowReader = ActiveWindowReader.shared
 
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitor: Any?
@@ -44,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             settings.$isShortcutEnabled,
             settings.$pillShortcut,
             settings.$fullChatShortcut,
-            settings.$isShortcutEnabled // dummy to satisfy CombineLatest4
+            settings.$regionCaptureShortcut
         )
         .dropFirst() // skip initial value
         .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
@@ -61,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
     }
     
-    /// Registers/re-registers the global keyboard shortcut monitor for both pill and full chat shortcuts.
+    /// Registers/re-registers the global keyboard shortcut monitor for pill, full chat, and region capture shortcuts.
     private func registerShortcutMonitor() {
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
@@ -74,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let pillShortcut = SettingsManager.shared.pillShortcut
             let fullChatShortcut = SettingsManager.shared.fullChatShortcut
+            let regionShortcut = SettingsManager.shared.regionCaptureShortcut
             
             // Check pill shortcut
             if event.keyCode == pillShortcut.keyCode && flags == pillShortcut.modifierFlags {
@@ -88,12 +90,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 self?.handleActivation(at: currentPos, expandImmediately: true)
                 return
             }
+            
+            // Check region capture shortcut
+            if event.keyCode == regionShortcut.keyCode && flags == regionShortcut.modifierFlags {
+                let currentPos = NSEvent.mouseLocation
+                self?.handleRegionCapture(at: currentPos)
+                return
+            }
         }
     }
 
     /// Called when a valid mouse shake or keyboard shortcut is detected.
     /// Captures the screen and spawns the floating AI chat panel.
     private func handleActivation(at point: NSPoint, expandImmediately: Bool) {
+        // Read active window context BEFORE capturing (since capture may change focus)
+        let activeContext = activeWindowReader.readActiveContext()
+        
         Task { @MainActor in
             do {
                 let image = try await screenCaptureManager.captureCurrentDisplay()
@@ -108,11 +120,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                     )
                 }
 
-                floatingPanelManager.showPanel(at: point, with: image, screenshotData: jpegData, expandImmediately: expandImmediately)
+                floatingPanelManager.showPanel(at: point, with: image, screenshotData: jpegData, expandImmediately: expandImmediately, activeContext: activeContext)
             } catch {
                 print("[GeminiContext] Screen capture failed: \(error.localizedDescription)")
                 // Show panel without screenshot on capture failure
-                floatingPanelManager.showPanel(at: point, with: nil, screenshotData: nil, expandImmediately: expandImmediately)
+                floatingPanelManager.showPanel(at: point, with: nil, screenshotData: nil, expandImmediately: expandImmediately, activeContext: activeContext)
+            }
+        }
+    }
+    
+    /// Handles region-specific screenshot capture.
+    private func handleRegionCapture(at point: NSPoint) {
+        // Read active window context BEFORE the overlay appears
+        let activeContext = activeWindowReader.readActiveContext()
+        
+        Task { @MainActor in
+            do {
+                let image = try await screenCaptureManager.captureRegion()
+                
+                var jpegData: Data?
+                if let tiffData = image.tiffRepresentation,
+                   let bitmap = NSBitmapImageRep(data: tiffData) {
+                    jpegData = bitmap.representation(
+                        using: .jpeg,
+                        properties: [.compressionFactor: 0.7]
+                    )
+                }
+                
+                floatingPanelManager.showPanel(at: point, with: image, screenshotData: jpegData, expandImmediately: true, activeContext: activeContext)
+            } catch {
+                if case CaptureError.regionCancelled = error {
+                    // User cancelled, do nothing
+                    return
+                }
+                print("[GeminiContext] Region capture failed: \(error.localizedDescription)")
             }
         }
     }

@@ -58,6 +58,43 @@ struct MenuBarView: View {
             .padding(.vertical, 10)
 
             Divider()
+            
+            // Persona Quick Toggle
+            VStack(alignment: .leading, spacing: 6) {
+                Text("PERSONA")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+                    .padding(.bottom, 2)
+                
+                ForEach(Array(settings.personas.enumerated()), id: \.element.id) { index, persona in
+                    Button {
+                        settings.activePersonaIndex = index
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: persona.icon)
+                                .font(.system(size: 11))
+                                .frame(width: 16)
+                                .foregroundStyle(settings.activePersonaIndex == index ? .purple : .secondary)
+                            Text(persona.name)
+                                .font(.system(size: 12, weight: settings.activePersonaIndex == index ? .semibold : .regular))
+                            Spacer()
+                            if settings.activePersonaIndex == index {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.purple)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 2)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            
+            Divider()
 
             // Status
             HStack(spacing: 6) {

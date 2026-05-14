@@ -12,6 +12,10 @@ final class FloatingPanelManager: NSObject, ObservableObject {
         }
     }
     
+    /// Guards against dismissal when NSOpenPanel or screenshot editor is open.
+    @Published var isFilePickerOpen = false
+    @Published var isScreenshotEditorOpen = false
+    
     private var currentPanel: FloatingPanel?
     private var eventMonitor: Any?
     private let expandedSize = NSSize(width: 480, height: 580)
@@ -22,7 +26,7 @@ final class FloatingPanelManager: NSObject, ObservableObject {
     }
 
     @MainActor
-    func showPanel(at point: NSPoint, with screenshot: NSImage?, screenshotData: Data? = nil, expandImmediately: Bool = false) {
+    func showPanel(at point: NSPoint, with screenshot: NSImage?, screenshotData: Data? = nil, expandImmediately: Bool = false, activeContext: ActiveWindowContext? = nil) {
         dismissPanel(force: true)
         
         // Reset pin state on new invocation
@@ -35,6 +39,7 @@ final class FloatingPanelManager: NSObject, ObservableObject {
         var chatView = ChatView(
             screenshot: screenshot,
             screenshotData: screenshotData,
+            activeContext: activeContext,
             onDismiss: { [weak self] in
                 self?.dismissPanel(force: true)
             },
@@ -91,8 +96,11 @@ final class FloatingPanelManager: NSObject, ObservableObject {
         }
         
         let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            if self?.isPinned == false {
-                self?.dismissPanel()
+            guard let self = self else { return }
+            // Don't dismiss when file picker or screenshot editor is open
+            if self.isFilePickerOpen || self.isScreenshotEditorOpen { return }
+            if self.isPinned == false {
+                self.dismissPanel()
             }
         }
         

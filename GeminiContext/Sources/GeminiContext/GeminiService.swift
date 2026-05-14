@@ -58,6 +58,7 @@ final class GeminiService: ObservableObject {
         prompt: String,
         imageData: Data?,
         attachments: [ChatAttachment] = [],
+        activeContextText: String? = nil,
         conversationHistory: [ChatMessage],
         onToken: @escaping @MainActor (String) -> Void,
         onComplete: @escaping @MainActor (Result<String, Error>) -> Void
@@ -81,6 +82,7 @@ final class GeminiService: ObservableObject {
                     prompt: prompt,
                     imageData: imageData,
                     attachments: attachments,
+                    activeContextText: activeContextText,
                     conversationHistory: conversationHistory,
                     apiKey: apiKey,
                     onToken: onToken
@@ -113,6 +115,7 @@ final class GeminiService: ObservableObject {
         prompt: String,
         imageData: Data?,
         attachments: [ChatAttachment],
+        activeContextText: String?,
         conversationHistory: [ChatMessage],
         apiKey: String,
         onToken: @escaping @MainActor (String) -> Void
@@ -136,6 +139,7 @@ final class GeminiService: ObservableObject {
             prompt: prompt,
             imageData: imageData,
             attachments: attachments,
+            activeContextText: activeContextText,
             conversationHistory: conversationHistory
         )
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -187,6 +191,7 @@ final class GeminiService: ObservableObject {
         prompt: String,
         imageData: Data?,
         attachments: [ChatAttachment],
+        activeContextText: String?,
         conversationHistory: [ChatMessage]
     ) -> [String: Any] {
 
@@ -224,17 +229,30 @@ final class GeminiService: ObservableObject {
             ])
         }
 
-        // Final text part
+        // Final text part with context
         var finalPrompt = prompt
-        if imageData != nil || !attachments.isEmpty {
-            var contextDesc = ""
-            if imageData != nil { contextDesc += "a screenshot of my current screen" }
-            if !attachments.isEmpty {
-                if !contextDesc.isEmpty { contextDesc += " and " }
-                contextDesc += "\(attachments.count) attached file(s)"
-            }
-            finalPrompt = "Here is \(contextDesc). \(prompt)"
+        var contextParts: [String] = []
+        
+        if imageData != nil {
+            contextParts.append("a screenshot of my current screen")
         }
+        if !attachments.isEmpty {
+            contextParts.append("\(attachments.count) attached file(s)")
+        }
+        if let activeContext = activeContextText, !activeContext.isEmpty {
+            contextParts.append("context from my active window")
+            finalPrompt = "Active window context:\n\(activeContext)\n\nUser question: \(prompt)"
+        }
+        
+        if !contextParts.isEmpty && activeContextText == nil {
+            finalPrompt = "Here is \(contextParts.joined(separator: " and ")). \(prompt)"
+        } else if !contextParts.isEmpty && activeContextText != nil {
+            let mediaContext = contextParts.filter { !$0.contains("active window") }
+            if !mediaContext.isEmpty {
+                finalPrompt = "Here is \(mediaContext.joined(separator: " and ")). \(finalPrompt)"
+            }
+        }
+        
         parts.append(["text": finalPrompt])
 
         contents.append([
@@ -257,6 +275,59 @@ final class GeminiService: ObservableObject {
         ]
 
         return body
+    }
+    
+    // MARK: - Token Estimation
+    
+    /// Estimates the token count for the current context.
+    /// Uses rough heuristics: ~4 chars per token for text, ~258 tokens per image tile.
+    static func estimateTokenCount(
+        text: String,
+        imageData: Data?,
+        attachments: [ChatAttachment],
+        activeContext: String?,
+        conversationHistory: [ChatMessage]
+    ) -> Int {
+        var tokens = 0
+        
+        // Text tokens (~4 chars per token)
+        tokens += text.count / 4
+        
+        // Conversation history
+        for msg in conversationHistory {
+            tokens += msg.content.count / 4
+        }
+        
+        // Active context
+        if let ctx = activeContext {
+            tokens += ctx.count / 4
+        }
+        
+        // Image tokens (Gemini charges ~258 tokens per 256x256 tile)
+        if let imgData = imageData {
+            // Rough estimate based on image size
+            let imgSize = imgData.count
+            // A typical 1920x1080 JPEG at 70% quality ≈ 200KB
+            // Gemini processes at 768x768 tiles, so ~6 tiles for a full HD image
+            let estimatedTiles = max(1, imgSize / 50_000) // rough heuristic
+            tokens += estimatedTiles * 258
+        }
+        
+        // Attachment tokens
+        for attachment in attachments {
+            if attachment.mimeType.starts(with: "image/") {
+                let estimatedTiles = max(1, attachment.data.count / 50_000)
+                tokens += estimatedTiles * 258
+            } else {
+                // Text-based attachments
+                tokens += attachment.data.count / 4
+            }
+        }
+        
+        // System prompt
+        tokens += SettingsManager.shared.systemPrompt.count / 4
+        
+        return tokens
     }
 }
 

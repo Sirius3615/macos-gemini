@@ -3,6 +3,7 @@ import SwiftUI
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general = "General"
     case providers = "Providers & Models"
+    case personas = "Personas"
     var id: String { rawValue }
 }
 
@@ -36,6 +37,17 @@ struct SettingsView: View {
                         .cornerRadius(5)
                 }
                 .tag(SettingsTab.providers)
+                
+                Label {
+                    Text("Personas")
+                } icon: {
+                    Image(systemName: "person.2.fill")
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Color.purple)
+                        .cornerRadius(5)
+                }
+                .tag(SettingsTab.personas)
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
             .toolbar(removing: .sidebarToggle)
@@ -46,11 +58,13 @@ struct SettingsView: View {
                     GeneralSettingsView()
                 case .providers:
                     ProvidersSettingsView()
+                case .personas:
+                    PersonasSettingsView()
                 }
             }
             .padding(.top, 24)
         }
-        .frame(width: 700, height: 500)
+        .frame(width: 700, height: 550)
     }
 }
 
@@ -100,6 +114,18 @@ struct GeneralSettingsView: View {
                         }
                         Spacer()
                         KeyboardShortcutRecorder(shortcut: $settings.fullChatShortcut)
+                    }
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Region Capture")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Select a screen region to capture")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        KeyboardShortcutRecorder(shortcut: $settings.regionCaptureShortcut)
                     }
                 }
             } header: {
@@ -202,5 +228,185 @@ struct ProvidersSettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - Personas Settings
+
+struct PersonasSettingsView: View {
+    @StateObject private var settings = SettingsManager.shared
+    @State private var editingPersona: PersonaConfig?
+    @State private var showNewPersona = false
+    
+    var body: some View {
+        Form {
+            Section {
+                ForEach(Array(settings.personas.enumerated()), id: \.element.id) { index, persona in
+                    HStack {
+                        Image(systemName: persona.icon)
+                            .font(.system(size: 14))
+                            .frame(width: 24)
+                            .foregroundStyle(settings.activePersonaIndex == index ? .purple : .secondary)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(persona.name)
+                                .font(.system(size: 13, weight: .medium))
+                            Text(persona.systemPrompt.prefix(60) + "...")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        
+                        Spacer()
+                        
+                        if settings.activePersonaIndex == index {
+                            Text("Active")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.purple)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(.purple.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                        
+                        Button {
+                            editingPersona = persona
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(.plain)
+                        
+                        if settings.personas.count > 1 {
+                            Button {
+                                settings.personas.removeAll { $0.id == persona.id }
+                                if settings.activePersonaIndex >= settings.personas.count {
+                                    settings.activePersonaIndex = 0
+                                }
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        settings.activePersonaIndex = index
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Custom Personas")
+                    Spacer()
+                    Button {
+                        showNewPersona = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+            } footer: {
+                Text("Personas define the AI's behavior and expertise. Click a persona to set it as active. Click the pencil icon to edit.")
+            }
+        }
+        .formStyle(.grouped)
+        .sheet(item: $editingPersona) { persona in
+            PersonaEditorSheet(persona: persona) { updated in
+                if let idx = settings.personas.firstIndex(where: { $0.id == updated.id }) {
+                    settings.personas[idx] = updated
+                }
+                editingPersona = nil
+            }
+        }
+        .sheet(isPresented: $showNewPersona) {
+            PersonaEditorSheet(persona: PersonaConfig(name: "", icon: "star.fill", systemPrompt: "")) { newPersona in
+                settings.personas.append(newPersona)
+                showNewPersona = false
+            }
+        }
+    }
+}
+
+struct PersonaEditorSheet: View {
+    @State var persona: PersonaConfig
+    let onSave: (PersonaConfig) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    private let availableIcons = [
+        "sparkles", "chevron.left.forwardslash.chevron.right", "pencil.and.outline",
+        "brain.head.profile", "lightbulb.fill", "book.fill",
+        "hammer.fill", "paintbrush.fill", "wand.and.stars",
+        "star.fill", "heart.fill", "bolt.fill",
+        "globe", "doc.text.fill", "terminal.fill"
+    ]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(persona.name.isEmpty ? "New Persona" : "Edit Persona")
+                .font(.system(size: 16, weight: .bold))
+                .padding(.top, 8)
+            
+            TextField("Persona Name", text: $persona.name)
+                .textFieldStyle(.roundedBorder)
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Icon")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(32)), count: 8), spacing: 8) {
+                    ForEach(availableIcons, id: \.self) { icon in
+                        Button {
+                            persona.icon = icon
+                        } label: {
+                            Image(systemName: icon)
+                                .font(.system(size: 14))
+                                .frame(width: 28, height: 28)
+                                .background(persona.icon == icon ? Color.purple.opacity(0.2) : Color.clear)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(persona.icon == icon ? Color.purple : Color.clear, lineWidth: 1.5)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text("System Prompt")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                
+                TextEditor(text: $persona.systemPrompt)
+                    .font(.system(size: 12))
+                    .frame(height: 120)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(.white.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.1)))
+            }
+            
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.plain)
+                Spacer()
+                Button("Save") {
+                    guard !persona.name.isEmpty else { return }
+                    onSave(persona)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .disabled(persona.name.isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
     }
 }

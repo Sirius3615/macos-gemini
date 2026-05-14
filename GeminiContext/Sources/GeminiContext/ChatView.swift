@@ -6,6 +6,7 @@ import WebKit
 struct ChatView: View {
     let screenshot: NSImage?
     let screenshotData: Data?
+    let activeContext: ActiveWindowContext?
     let onDismiss: () -> Void
     var onResize: ((NSSize) -> Void)?
     var initiallyExpanded: Bool = false
@@ -40,7 +41,7 @@ struct ChatView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(VisualEffectView(material: .popover, blendingMode: .behindWindow))
+        .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
         .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 36))
         .overlay(
             RoundedRectangle(cornerRadius: isExpanded ? 16 : 36)
@@ -279,17 +280,38 @@ struct ChatView: View {
             
             Spacer()
             
-            Button(action: { showModelPicker.toggle() }) {
-                HStack(spacing: 5) {
-                    Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundStyle(.purple)
-                    Text(settings.selectedModel.displayName).font(.system(size: 12, weight: .medium))
-                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(.tertiary)
+            VStack(spacing: 6) {
+                Button(action: { showModelPicker.toggle() }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundStyle(.purple)
+                        Text(settings.selectedModel.displayName).font(.system(size: 12, weight: .medium))
+                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 8))
+                .buttonStyle(.plain)
+                .popover(isPresented: $showModelPicker, arrowEdge: .bottom) { modelPicker }
+                
+                // Persona indicator
+                Button {
+                    let next = (settings.activePersonaIndex + 1) % settings.personas.count
+                    settings.activePersonaIndex = next
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: settings.activePersona.icon)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.blue)
+                        Text(settings.activePersona.name)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(.white.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .help("Click to switch persona")
             }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showModelPicker, arrowEdge: .bottom) { modelPicker }
             
             Spacer()
             
@@ -368,7 +390,9 @@ struct ChatView: View {
     }
 
     // MARK: Screenshot
-    @State private var showScreenshotEditor = false
+    @State private var showScreenshotEditor = false {
+        didSet { floatingPanelManager.isScreenshotEditorOpen = showScreenshotEditor }
+    }
     @State private var editedScreenshotData: Data?
 
     private var activeScreenshotData: Data? {
@@ -459,6 +483,36 @@ struct ChatView: View {
     // MARK: Input Bar
     private var inputBar: some View {
         VStack(spacing: 0) {
+            // Active context chip
+            if let ctx = activeContext, !ctx.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "app.badge.checkmark")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.blue)
+                    if !ctx.appName.isEmpty {
+                        Text(ctx.appName)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    if !ctx.selectedText.isEmpty {
+                        Text("· \(ctx.selectedText.prefix(40))...")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if !ctx.activeURL.isEmpty {
+                        Text("· \(ctx.activeURL.prefix(40))")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 5)
+                .background(.blue.opacity(0.06))
+                Divider().opacity(0.2)
+            }
+            
             if !attachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -508,6 +562,12 @@ struct ChatView: View {
                     .focused($isInputFocused)
                     .onSubmit(sendMessage)
                 
+                // Token estimation label
+                Text(tokenEstimateLabel)
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .help("Estimated token count for current context")
+                
                 if geminiService.isGenerating {
                     Button(action: { geminiService.cancelGeneration() }) {
                         Image(systemName: "stop.circle.fill")
@@ -529,6 +589,20 @@ struct ChatView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
         }
+    }
+    
+    private var tokenEstimateLabel: String {
+        let count = GeminiService.estimateTokenCount(
+            text: inputText,
+            imageData: activeScreenshotData,
+            attachments: attachments,
+            activeContext: activeContext?.contextDescription,
+            conversationHistory: messages
+        )
+        if count >= 1000 {
+            return String(format: "~%.1fk", Double(count) / 1000.0)
+        }
+        return "~\(count)"
     }
     
     private func attachmentIcon(for attachment: ChatAttachment) -> some View {
@@ -572,6 +646,7 @@ struct ChatView: View {
         geminiService.streamGenerate(
             prompt: text, imageData: activeScreenshotData,
             attachments: attachments,
+            activeContextText: activeContext?.contextDescription,
             conversationHistory: Array(messages.dropLast()),
             onToken: { streamingText += $0 },
             onComplete: { result in
@@ -629,11 +704,17 @@ struct ChatView: View {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         
+        // Guard against auto-dismiss while file picker is open
+        floatingPanelManager.isFilePickerOpen = true
+        
         if panel.runModal() == .OK {
             for url in panel.urls {
                 addFile(url: url)
             }
         }
+        
+        // Allow auto-dismiss again
+        floatingPanelManager.isFilePickerOpen = false
     }
     
     private func addFile(url: URL) {

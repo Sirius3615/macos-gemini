@@ -32,6 +32,8 @@ struct KeyboardShortcutConfig: Codable, Equatable {
     static let defaultPill = KeyboardShortcutConfig(keyCode: UInt16(kVK_Space), modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
     /// Default full chat shortcut: Cmd+Shift+G
     static let defaultFullChat = KeyboardShortcutConfig(keyCode: UInt16(kVK_ANSI_G), modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
+    /// Default region capture shortcut: Cmd+Shift+R
+    static let defaultRegionCapture = KeyboardShortcutConfig(keyCode: UInt16(kVK_ANSI_R), modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
     
     var modifierFlags: NSEvent.ModifierFlags {
         NSEvent.ModifierFlags(rawValue: modifiers)
@@ -124,6 +126,50 @@ struct KeyboardShortcutConfig: Codable, Equatable {
     }
 }
 
+/// A persona configuration that wraps a name, icon, and system prompt.
+struct PersonaConfig: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var name: String
+    var icon: String
+    var systemPrompt: String
+    
+    static let defaultPersonas: [PersonaConfig] = [
+        PersonaConfig(
+            name: "General Assistant",
+            icon: "sparkles",
+            systemPrompt: """
+            You are a helpful AI assistant integrated into a macOS utility called AI Context. \
+            The user can shake their mouse to capture their screen and ask you questions about it. \
+            When shown a screenshot, analyze it carefully and provide helpful, contextual responses. \
+            Use Markdown formatting in your responses including headers, lists, code blocks, and bold/italic text. \
+            When mathematical expressions are relevant, use LaTeX notation wrapped in $ for inline and $$ for display math.
+            """
+        ),
+        PersonaConfig(
+            name: "Code Reviewer",
+            icon: "chevron.left.forwardslash.chevron.right",
+            systemPrompt: """
+            You are an expert code reviewer integrated into a macOS utility. \
+            When shown code or screenshots of code, provide detailed, actionable code reviews. \
+            Focus on: code quality, potential bugs, performance issues, security concerns, and best practices. \
+            Suggest specific improvements with code examples. Use Markdown with syntax-highlighted code blocks. \
+            Be constructive but thorough — point out both strengths and areas for improvement.
+            """
+        ),
+        PersonaConfig(
+            name: "Creative Writer",
+            icon: "pencil.and.outline",
+            systemPrompt: """
+            You are a creative writing assistant. Help the user with writing tasks including \
+            drafting emails, documentation, blog posts, marketing copy, and creative content. \
+            Adapt your tone and style to the user's needs. Provide well-structured, engaging text. \
+            When shown screenshots, help describe or write about what you see. \
+            Use rich Markdown formatting to structure your responses.
+            """
+        )
+    ]
+}
+
 /// Manages persistent app settings including API key (stored in Keychain)
 /// and selected model preference (stored in UserDefaults).
 final class SettingsManager: ObservableObject {
@@ -143,6 +189,9 @@ final class SettingsManager: ObservableObject {
     private let shortcutEnabledKey = "isShortcutEnabled"
     private let pillShortcutKey = "pillShortcut"
     private let fullChatShortcutKey = "fullChatShortcut"
+    private let regionCaptureShortcutKey = "regionCaptureShortcut"
+    private let personasKey = "customPersonas"
+    private let activePersonaIndexKey = "activePersonaIndex"
 
     @Published var activeProvider: AIProvider {
         didSet { UserDefaults.standard.set(activeProvider.rawValue, forKey: providerKey) }
@@ -165,10 +214,6 @@ final class SettingsManager: ObservableObject {
         didSet { UserDefaults.standard.set(selectedModelId, forKey: modelKey) }
     }
 
-    @Published var systemPrompt: String {
-        didSet { UserDefaults.standard.set(systemPrompt, forKey: systemPromptKey) }
-    }
-    
     @Published var isShakeEnabled: Bool {
         didSet { UserDefaults.standard.set(isShakeEnabled, forKey: shakeEnabledKey) }
     }
@@ -201,6 +246,40 @@ final class SettingsManager: ObservableObject {
     
     @Published var fullChatShortcut: KeyboardShortcutConfig {
         didSet { saveShortcut(fullChatShortcut, forKey: fullChatShortcutKey) }
+    }
+    
+    @Published var regionCaptureShortcut: KeyboardShortcutConfig {
+        didSet { saveShortcut(regionCaptureShortcut, forKey: regionCaptureShortcutKey) }
+    }
+    
+    // MARK: - Personas
+    
+    @Published var personas: [PersonaConfig] {
+        didSet { savePersonas() }
+    }
+    
+    @Published var activePersonaIndex: Int {
+        didSet {
+            UserDefaults.standard.set(activePersonaIndex, forKey: activePersonaIndexKey)
+        }
+    }
+    
+    /// The system prompt from the active persona.
+    var systemPrompt: String {
+        get {
+            guard activePersonaIndex >= 0, activePersonaIndex < personas.count else {
+                return PersonaConfig.defaultPersonas[0].systemPrompt
+            }
+            return personas[activePersonaIndex].systemPrompt
+        }
+    }
+    
+    /// The active persona config.
+    var activePersona: PersonaConfig {
+        guard activePersonaIndex >= 0, activePersonaIndex < personas.count else {
+            return PersonaConfig.defaultPersonas[0]
+        }
+        return personas[activePersonaIndex]
     }
 
     var selectedModel: GeminiModel {
@@ -236,13 +315,6 @@ final class SettingsManager: ObservableObject {
         }
 
         self.selectedModelId = UserDefaults.standard.string(forKey: modelKey) ?? GeminiModel.pro31Preview.rawValue
-        self.systemPrompt = UserDefaults.standard.string(forKey: systemPromptKey) ?? """
-            You are a helpful AI assistant integrated into a macOS utility called AI Context. \
-            The user can shake their mouse to capture their screen and ask you questions about it. \
-            When shown a screenshot, analyze it carefully and provide helpful, contextual responses. \
-            Use Markdown formatting in your responses including headers, lists, code blocks, and bold/italic text. \
-            When mathematical expressions are relevant, use LaTeX notation wrapped in $ for inline and $$ for display math.
-            """
             
         self.isShakeEnabled = UserDefaults.standard.object(forKey: shakeEnabledKey) as? Bool ?? true
         self.chatResetMinutes = UserDefaults.standard.object(forKey: chatResetMinutesKey) as? Double ?? 20.0
@@ -250,6 +322,17 @@ final class SettingsManager: ObservableObject {
         self.launchAtLogin = SMAppService.mainApp.status == .enabled
         self.pillShortcut = SettingsManager.loadShortcut(forKey: "pillShortcut") ?? .defaultPill
         self.fullChatShortcut = SettingsManager.loadShortcut(forKey: "fullChatShortcut") ?? .defaultFullChat
+        self.regionCaptureShortcut = SettingsManager.loadShortcut(forKey: "regionCaptureShortcut") ?? .defaultRegionCapture
+        
+        // Load personas
+        self.activePersonaIndex = UserDefaults.standard.object(forKey: activePersonaIndexKey) as? Int ?? 0
+        if let data = UserDefaults.standard.data(forKey: personasKey),
+           let loaded = try? JSONDecoder().decode([PersonaConfig].self, from: data),
+           !loaded.isEmpty {
+            self.personas = loaded
+        } else {
+            self.personas = PersonaConfig.defaultPersonas
+        }
         
         self.geminiApiKey = ""
         self.openaiApiKey = ""
@@ -318,5 +401,13 @@ final class SettingsManager: ObservableObject {
     private static func loadShortcut(forKey key: String) -> KeyboardShortcutConfig? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(KeyboardShortcutConfig.self, from: data)
+    }
+    
+    // MARK: - Persona Persistence
+    
+    private func savePersonas() {
+        if let data = try? JSONEncoder().encode(personas) {
+            UserDefaults.standard.set(data, forKey: personasKey)
+        }
     }
 }

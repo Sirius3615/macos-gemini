@@ -5,6 +5,11 @@ struct DrawingPath: Identifiable {
     var points: [CGPoint]
 }
 
+struct BlurRegion: Identifiable {
+    let id = UUID()
+    var rect: CGRect
+}
+
 struct ScreenshotEditorView: View {
     let originalImage: NSImage
     let onComplete: (Data?) -> Void
@@ -12,6 +17,11 @@ struct ScreenshotEditorView: View {
     @State private var mode: EditMode = .crop
     @State private var paths: [DrawingPath] = []
     @State private var currentPath: DrawingPath?
+    
+    // Blur/Redact state
+    @State private var blurRegions: [BlurRegion] = []
+    @State private var currentBlurStart: CGPoint?
+    @State private var currentBlurRect: CGRect?
     
     // Crop state
     @State private var cropRect: CGRect?
@@ -21,9 +31,10 @@ struct ScreenshotEditorView: View {
     // Geometry for rendering
     @State private var viewSize: CGSize = .zero
     
-    enum EditMode {
-        case draw
-        case crop
+    enum EditMode: String, CaseIterable {
+        case crop = "Crop"
+        case draw = "Draw"
+        case blur = "Redact"
     }
     
     var body: some View {
@@ -38,13 +49,24 @@ struct ScreenshotEditorView: View {
                 Spacer()
                 
                 Picker("", selection: $mode) {
-                    Text("Crop").tag(EditMode.crop)
-                    Text("Draw").tag(EditMode.draw)
+                    ForEach(EditMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 150)
+                .frame(width: 220)
                 
                 Spacer()
+                
+                if !blurRegions.isEmpty || !paths.isEmpty || cropRect != nil {
+                    Button("Clear All") {
+                        blurRegions.removeAll()
+                        paths.removeAll()
+                        cropRect = nil
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.red)
+                }
                 
                 Button("Done") {
                     finishEditing()
@@ -54,6 +76,18 @@ struct ScreenshotEditorView: View {
             }
             .padding()
             .background(Color.black.opacity(0.8))
+            
+            // Mode hint
+            HStack {
+                Image(systemName: modeIcon)
+                    .font(.system(size: 10))
+                Text(modeHint)
+                    .font(.system(size: 11))
+            }
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(Color.black.opacity(0.4))
             
             // Editor Area
             GeometryReader { geometry in
@@ -82,6 +116,22 @@ struct ScreenshotEditorView: View {
         .frame(minWidth: 600, minHeight: 400)
     }
     
+    private var modeIcon: String {
+        switch mode {
+        case .crop: return "crop"
+        case .draw: return "pencil.tip"
+        case .blur: return "eye.slash.fill"
+        }
+    }
+    
+    private var modeHint: String {
+        switch mode {
+        case .crop: return "Click and drag to select a crop region"
+        case .draw: return "Draw annotations on the screenshot"
+        case .blur: return "Drag over sensitive areas to redact them"
+        }
+    }
+    
     private func calculateRenderSize(viewSize: CGSize) -> CGSize {
         let aspect = originalImage.size.width / originalImage.size.height
         let viewAspect = viewSize.width / viewSize.height
@@ -107,6 +157,7 @@ struct ScreenshotEditorView: View {
             
             // Drawing overlay
             Canvas { context, size in
+                // Draw paths
                 for path in paths {
                     var p = Path()
                     guard let first = path.points.first else { continue }
@@ -125,6 +176,32 @@ struct ScreenshotEditorView: View {
                         p.addLine(to: point)
                     }
                     context.stroke(p, with: .color(.red), lineWidth: 4)
+                }
+                
+                // Draw blur/redact regions as black rectangles with pattern
+                for region in blurRegions {
+                    let rect = region.rect
+                    // Solid dark fill for redaction
+                    context.fill(Path(rect), with: .color(Color.black))
+                    // Subtle pattern to indicate redaction
+                    context.stroke(Path(rect), with: .color(Color.gray.opacity(0.5)), lineWidth: 1)
+                    
+                    // Draw diagonal lines pattern
+                    let step: CGFloat = 8
+                    var patternPath = Path()
+                    var x = rect.minX
+                    while x < rect.maxX {
+                        patternPath.move(to: CGPoint(x: x, y: rect.minY))
+                        patternPath.addLine(to: CGPoint(x: x + rect.height, y: rect.maxY))
+                        x += step
+                    }
+                    context.stroke(patternPath, with: .color(Color.gray.opacity(0.15)), lineWidth: 0.5)
+                }
+                
+                // Draw current blur region being dragged
+                if let currentRect = currentBlurRect {
+                    context.fill(Path(currentRect), with: .color(Color.black.opacity(0.7)))
+                    context.stroke(Path(currentRect), with: .color(Color.red.opacity(0.8)), style: StrokeStyle(lineWidth: 2, dash: [4]))
                 }
             }
         }
@@ -173,6 +250,16 @@ struct ScreenshotEditorView: View {
                         let w = abs(dragStartPoint.x - value.location.x)
                         let h = abs(dragStartPoint.y - value.location.y)
                         cropRect = CGRect(x: x, y: y, width: w, height: h)
+                    } else if mode == .blur {
+                        if currentBlurStart == nil {
+                            currentBlurStart = value.location
+                        }
+                        let start = currentBlurStart!
+                        let x = min(start.x, value.location.x)
+                        let y = min(start.y, value.location.y)
+                        let w = abs(start.x - value.location.x)
+                        let h = abs(start.y - value.location.y)
+                        currentBlurRect = CGRect(x: x, y: y, width: w, height: h)
                     }
                 }
                 .onEnded { value in
@@ -183,6 +270,12 @@ struct ScreenshotEditorView: View {
                         currentPath = nil
                     } else if mode == .crop {
                         isDraggingCrop = false
+                    } else if mode == .blur {
+                        if let rect = currentBlurRect, rect.width > 4 && rect.height > 4 {
+                            blurRegions.append(BlurRegion(rect: rect))
+                        }
+                        currentBlurStart = nil
+                        currentBlurRect = nil
                     }
                 }
         )
