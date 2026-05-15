@@ -166,19 +166,19 @@ struct ProvidersSettingsView: View {
             Section {
                 HStack {
                     Image(systemName: "sparkles").foregroundStyle(.purple).frame(width: 20)
-                    SecureField("Gemini API Key", text: $settings.geminiApiKey)
+                    APIKeyField(title: "Gemini API Key", text: $settings.geminiApiKey)
                 }
                 HStack {
                     Image(systemName: "o.square").foregroundStyle(.green).frame(width: 20)
-                    SecureField("OpenAI API Key", text: $settings.openaiApiKey)
+                    APIKeyField(title: "OpenAI API Key", text: $settings.openaiApiKey)
                 }
                 HStack {
                     Image(systemName: "c.square").foregroundStyle(.orange).frame(width: 20)
-                    SecureField("Claude API Key", text: $settings.claudeApiKey)
+                    APIKeyField(title: "Claude API Key", text: $settings.claudeApiKey)
                 }
                 HStack {
                     Image(systemName: "d.circle").foregroundStyle(.blue).frame(width: 20)
-                    SecureField("DeepSeek API Key", text: $settings.deepseekApiKey)
+                    APIKeyField(title: "DeepSeek API Key", text: $settings.deepseekApiKey)
                 }
             } header: {
                 Text("API Authentication")
@@ -228,6 +228,42 @@ struct ProvidersSettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+struct APIKeyField: View {
+    let title: String
+    @Binding var text: String
+    @State private var isVisible = false
+    
+    var body: some View {
+        HStack {
+            if isVisible {
+                TextField(title, text: $text)
+                    .textFieldStyle(.roundedBorder)
+            } else {
+                SecureField(title, text: $text)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            Button(action: {
+                isVisible.toggle()
+            }) {
+                Image(systemName: isVisible ? "eye.slash.fill" : "eye.fill")
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            
+            if !text.isEmpty {
+                Button(action: {
+                    text = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
 

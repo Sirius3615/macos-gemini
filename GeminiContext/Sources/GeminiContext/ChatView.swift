@@ -79,9 +79,6 @@ struct ChatView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isExpanded)
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
-        // Draggable window background
-        .contentShape(Rectangle())
-        .gesture(DragGesture().onChanged { _ in NSApp.keyWindow?.performDrag(with: NSApp.currentEvent!) })
     }
     
     private var expandedView: some View {
@@ -147,8 +144,11 @@ struct ChatView: View {
                     .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
             }
             
-            Button(action: openFilePicker) {
-                Image(systemName: "paperclip")
+            Button(action: {
+                isExpanded = true
+                onResize?(NSSize(width: 480, height: 580))
+            }) {
+                Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                     .font(.system(size: 16))
                     .foregroundStyle(.secondary)
             }
@@ -165,8 +165,8 @@ struct ChatView: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 24))
                     .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty 
-                                     ? AnyShapeStyle(.white.opacity(0.2)) 
-                                     : AnyShapeStyle(.linearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                                     ? AnyShapeStyle(.secondary.opacity(0.5)) 
+                                     : AnyShapeStyle(.primary))
             }
             .buttonStyle(.plain)
             .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -579,8 +579,8 @@ struct ChatView: View {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 24))
                             .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty 
-                                             ? AnyShapeStyle(.white.opacity(0.2)) 
-                                             : AnyShapeStyle(.linearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                                             ? AnyShapeStyle(.secondary.opacity(0.5)) 
+                                             : AnyShapeStyle(.primary))
                     }
                     .buttonStyle(.plain)
                     .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -753,6 +753,20 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     }
 }
 
+// MARK: - Custom WKWebView Subclass
+/// Prevents the WKWebView from trapping vertical scroll events, handing them over to the SwiftUI ScrollView
+class ChatWKWebView: WKWebView {
+    override func scrollWheel(with event: NSEvent) {
+        // If there's more horizontal scrolling (like swiping a code block), let the web view handle it natively
+        if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) {
+            super.scrollWheel(with: event)
+        } else {
+            // Forward vertical scrolling up the responder chain (to the parent SwiftUI ScrollView)
+            self.nextResponder?.scrollWheel(with: event)
+        }
+    }
+}
+
 // MARK: - MarkdownWebView (WKWebView-based rich renderer)
 
 /// Renders Markdown with syntax-highlighted code blocks (highlight.js) and
@@ -768,7 +782,8 @@ struct MarkdownWebView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.userContentController = contentController
         
-        let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 400, height: 20), configuration: config)
+        // Initialize our custom subclass instead of the default WKWebView
+        let wv = ChatWKWebView(frame: NSRect(x: 0, y: 0, width: 400, height: 20), configuration: config)
         wv.setValue(false, forKey: "drawsBackground")
         wv.navigationDelegate = context.coordinator
         context.coordinator.webView = wv
@@ -817,8 +832,8 @@ struct MarkdownWebView: NSViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // After page loads, measure content height and post it
-            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
+            // Use documentElement.scrollHeight for a more accurate reading to prevent internal overflow constraints
+            webView.evaluateJavaScript("document.documentElement.scrollHeight") { [weak self] result, _ in
                 if let height = result as? CGFloat {
                     DispatchQueue.main.async {
                         guard let wv = self?.webView else { return }
@@ -853,6 +868,10 @@ struct MarkdownWebView: NSViewRepresentable {
         <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body {
+                /* Prevents any internal vertical scrolling and scrollbars in the WKWebView */
+                overflow-y: hidden;
+            }
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
                 font-size: 13px;
@@ -1062,13 +1081,13 @@ struct MarkdownWebView: NSViewRepresentable {
             const withLaTeX = processLaTeX(raw);
             document.getElementById('content').innerHTML = marked.parse(withLaTeX);
             
-            // Notify height
+            // Notify height using documentElement for a more accurate read and consistent behavior
             setTimeout(function() {
-                window.webkit.messageHandlers.resize.postMessage(document.body.scrollHeight);
+                window.webkit.messageHandlers.resize.postMessage(document.documentElement.scrollHeight);
             }, 50);
             // Re-measure after fonts/images load
             setTimeout(function() {
-                window.webkit.messageHandlers.resize.postMessage(document.body.scrollHeight);
+                window.webkit.messageHandlers.resize.postMessage(document.documentElement.scrollHeight);
             }, 300);
         })();
         </script>

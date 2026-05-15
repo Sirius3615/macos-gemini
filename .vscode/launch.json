@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:macos gemini}/GeminiContext",
+            "name": "Debug GeminiContext (GeminiContext)",
+            "target": "GeminiContext",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug GeminiContext (GeminiContext)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:macos gemini}/GeminiContext",
+            "name": "Release GeminiContext (GeminiContext)",
+            "target": "GeminiContext",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release GeminiContext (GeminiContext)"
+        }
+    ]
+}

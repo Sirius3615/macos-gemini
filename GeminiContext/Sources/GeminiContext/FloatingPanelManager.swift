@@ -36,6 +36,10 @@ final class FloatingPanelManager: NSObject, ObservableObject {
         let startOrigin = calculatePanelOrigin(cursorPoint: point, size: initialSize)
         
         let panel = FloatingPanel(contentRect: NSRect(origin: startOrigin, size: initialSize))
+        if expandImmediately {
+            panel.styleMask.insert(.resizable)
+        }
+        
         var chatView = ChatView(
             screenshot: screenshot,
             screenshotData: screenshotData,
@@ -45,6 +49,14 @@ final class FloatingPanelManager: NSObject, ObservableObject {
             },
             onResize: { [weak panel] newSize in
                 guard let panel = panel else { return }
+                
+                // Allow resizing when expanded
+                if newSize.width > 400 {
+                    panel.styleMask.insert(.resizable)
+                } else {
+                    panel.styleMask.remove(.resizable)
+                }
+
                 var frame = panel.frame
                 // Anchor top-left, meaning Y decreases
                 frame.origin.y -= (newSize.height - frame.size.height)
@@ -63,8 +75,7 @@ final class FloatingPanelManager: NSObject, ObservableObject {
         )
         chatView.initiallyExpanded = expandImmediately
         let hostingView = NSHostingView(rootView: chatView)
-        hostingView.layer?.cornerRadius = 16
-        hostingView.layer?.masksToBounds = true
+        // SwiftUI handles its own clipShape, so no masking or corner radius needed here.
         panel.contentView = hostingView
         panel.delegate = self
         panel.alphaValue = 0

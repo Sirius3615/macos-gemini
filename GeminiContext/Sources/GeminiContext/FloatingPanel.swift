@@ -16,7 +16,8 @@ final class FloatingPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView, .resizable],
+            // By default not resizable. The manager will add .resizable when expanded.
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -41,16 +42,7 @@ final class FloatingPanel: NSPanel {
         // Animation
         animationBehavior = .utilityWindow
         
-        // Add NSVisualEffectView as the background for native frosted glass
-        let visualEffectView = NSVisualEffectView(frame: NSRect(origin: .zero, size: contentRect.size))
-        visualEffectView.material = .hudWindow
-        visualEffectView.blendingMode = .behindWindow
-        visualEffectView.state = .active
-        visualEffectView.wantsLayer = true
-        visualEffectView.layer?.cornerRadius = 16
-        visualEffectView.layer?.masksToBounds = true
-        visualEffectView.autoresizingMask = [.width, .height]
-        contentView = visualEffectView
+        // We do not add NSVisualEffectView here, because SwiftUI ChatView provides its own.
     }
 
     // MARK: - Overrides
@@ -64,22 +56,5 @@ final class FloatingPanel: NSPanel {
     /// Allow the panel to become the main window.
     override var canBecomeMain: Bool {
         return false
-    }
-    
-    /// Override contentView setter to nest inside the visual effect view.
-    override var contentView: NSView? {
-        get { return super.contentView }
-        set {
-            if let vev = super.contentView as? NSVisualEffectView, let newView = newValue, !(newValue is NSVisualEffectView) {
-                // Add the new view as a subview of the visual effect view
-                newView.frame = vev.bounds
-                newView.autoresizingMask = [.width, .height]
-                // Remove existing subviews except the new one
-                vev.subviews.forEach { $0.removeFromSuperview() }
-                vev.addSubview(newView)
-            } else {
-                super.contentView = newValue
-            }
-        }
     }
 }
