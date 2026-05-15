@@ -1,6 +1,12 @@
 import SwiftUI
 import WebKit
 
+struct EditorConfig: Identifiable {
+    let id = UUID()
+    let image: NSImage
+    let onComplete: (Data?) -> Void
+}
+
 // MARK: - ChatView
 
 struct ChatView: View {
@@ -27,7 +33,11 @@ struct ChatView: View {
     @FocusState private var isInputFocused: Bool
 
     @State private var showSidebar = false
+    @State private var showContextSidebar = true
     @State private var searchText = ""
+    @State private var screenshotCleared = false
+    @State private var selectedContextId: String?
+    @FocusState private var focusedContextId: String?
     
     // File drop support
     @State private var attachments: [ChatAttachment] = []
@@ -60,16 +70,56 @@ struct ChatView: View {
                 loadSession(lastSession)
             } else {
                 currentSessionId = UUID()
+                screenshotCleared = false
             }
+            
+            // Integrate accumulated recent screenshots from FloatingPanelManager
+            let recentCaptures = floatingPanelManager.recentCaptures
+            if recentCaptures.count > 1 {
+                // If there are multiple captures in the last minute, use the latest one as the main screenshot
+                // and add the previous ones as attachments to the current session context.
+                // Or simply add *all* additional ones as attachments so they can be managed.
+                
+                // Sort chronologically (oldest first) or leave as is (newest last)
+                // We'll set the newest as the main screenshot (if not cleared)
+                // and the rest as image attachments.
+                
+                let previousCaptures = recentCaptures.dropLast()
+                
+                for (index, capture) in previousCaptures.enumerated() {
+                    // Only add if not already in attachments to avoid duplicates
+                    // Use index to avoid matching data since data might've been edited slightly
+                    if !attachments.contains(where: { $0.name == "Context \\(index+1).jpg" }) {
+                        let currentImageCount = (activeScreenshotData != nil ? 1 : 0) + attachments.filter { $0.mimeType.starts(with: "image/") }.count
+                        if currentImageCount < 10 {
+                            attachments.append(ChatAttachment(
+                                name: "Context \\(index+1).jpg",
+                                data: capture.data,
+                                mimeType: "image/jpeg"
+                            ))
+                        }
+                    } else if let attIndex = attachments.firstIndex(where: { $0.name == "Context \\(index+1).jpg" }) {
+                        // ensure it has latest potentially edited data
+                        attachments[attIndex] = ChatAttachment(
+                            id: attachments[attIndex].id,
+                            name: "Context \\(index+1).jpg",
+                            data: capture.data,
+                            mimeType: "image/jpeg"
+                        )
+                    }
+                }
+            }
+
             // Always set the newly captured screenshot as the active context
             if let newScreenshot = screenshotData {
                 editedScreenshotData = newScreenshot
+                screenshotCleared = false
             }
             
             // If opened via full chat shortcut, expand immediately
             if initiallyExpanded {
                 isExpanded = true
-                onResize?(NSSize(width: 480, height: 580))
+                onResize?(NSSize(width: 700, height: 600))
             }
             
             // Auto focus the input field
@@ -79,6 +129,12 @@ struct ChatView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isExpanded)
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
+        .sheet(item: $editorConfig) { config in
+            ScreenshotEditorView(originalImage: config.image) { data in
+                config.onComplete(data)
+                self.editorConfig = nil
+            }
+        }
     }
     
     private var expandedView: some View {
@@ -96,22 +152,36 @@ struct ChatView: View {
                 if !settings.hasAPIKey {
                     apiKeySetupView
                 } else {
-                    if screenshot != nil { screenshotSection }
                     chatArea
                     Divider().opacity(0.3)
                     inputBar
                 }
             }
             .frame(minWidth: 400, minHeight: 400)
+            
+            if showContextSidebar {
+                Divider()
+                contextSidebarView
+                    .frame(width: 200)
+                    .transition(.move(edge: .trailing))
+            }
         }
     }
     
     private var compactPillView: some View {
         HStack(spacing: 12) {
             // Squircle image on the left
-            if let img = activeScreenshotImage {
+            if let img = activeScreenshotImage, let original = screenshot {
                 Button {
-                    showScreenshotEditor = true
+                    editorConfig = EditorConfig(image: original) { data in
+                        if let d = data {
+                            self.editedScreenshotData = d
+                            if var last = floatingPanelManager.recentCaptures.last, let newImg = NSImage(data: d) {
+                                let updated = RecentCapture(image: newImg, data: d, timestamp: last.timestamp)
+                                floatingPanelManager.recentCaptures[floatingPanelManager.recentCaptures.count - 1] = updated
+                            }
+                        }
+                    }
                 } label: {
                     Image(nsImage: img)
                         .resizable()
@@ -128,14 +198,6 @@ struct ChatView: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .sheet(isPresented: $showScreenshotEditor) {
-                    ScreenshotEditorView(originalImage: screenshot!) { data in
-                        if let d = data {
-                            self.editedScreenshotData = d
-                        }
-                        self.showScreenshotEditor = false
-                    }
-                }
             } else {
                 // Placeholder squircle if no image
                 RoundedRectangle(cornerRadius: 12)
@@ -146,7 +208,7 @@ struct ChatView: View {
             
             Button(action: {
                 isExpanded = true
-                onResize?(NSSize(width: 480, height: 580))
+                onResize?(NSSize(width: 700, height: 600))
             }) {
                 Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                     .font(.system(size: 16))
@@ -154,7 +216,7 @@ struct ChatView: View {
             }
             .buttonStyle(.plain)
             
-            TextField("Ask about your screen...", text: $inputText)
+            TextField("Ask about anything...", text: $inputText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($isInputFocused)
@@ -180,7 +242,7 @@ struct ChatView: View {
         guard !text.isEmpty else { return }
         
         isExpanded = true
-        onResize?(NSSize(width: 480, height: 580))
+        onResize?(NSSize(width: 700, height: 600))
         
         // Give the window a short moment to animate its frame before generating text
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -254,24 +316,25 @@ struct ChatView: View {
         messages = session.messages
         editedScreenshotData = session.screenshotData
         attachments = session.attachments ?? []
+        screenshotCleared = (session.screenshotData == nil)
+        selectedContextId = nil
     }
 
     // MARK: Title Bar
     private var titleBar: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             // Window controls & Sidebar toggle
-            VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
+                        .font(.system(size: 14))
                         .foregroundStyle(.red.opacity(0.8))
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 2)
                 
                 Button(action: { showSidebar.toggle() }) {
                     Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 14))
+                        .font(.system(size: 18))
                         .foregroundStyle(.secondary)
                         .contentShape(Rectangle())
                 }
@@ -315,25 +378,33 @@ struct ChatView: View {
             
             Spacer()
             
-            VStack(alignment: .trailing, spacing: 8) {
+            HStack(spacing: 16) {
                 Button {
                     floatingPanelManager.isPinned.toggle()
                 } label: {
                     Image(systemName: floatingPanelManager.isPinned ? "pin.fill" : "pin")
-                        .font(.system(size: 12))
-                        .foregroundStyle(floatingPanelManager.isPinned ? .purple : .secondary)
+                        .font(.system(size: 16))
+                        .foregroundStyle(floatingPanelManager.isPinned ? .white : .secondary)
                 }
                 .buttonStyle(.plain)
                 .help(floatingPanelManager.isPinned ? "Unpin Window" : "Pin Window")
-                .padding(.top, 2)
                 
                 Button(action: clearConversation) {
                     Image(systemName: "square.and.pencil")
-                        .font(.system(size: 14))
+                        .font(.system(size: 16))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .help("New Chat")
+                
+                Button(action: { showContextSidebar.toggle() }) {
+                    Image(systemName: "sidebar.right")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Toggle Context Sidebar")
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
@@ -390,59 +461,182 @@ struct ChatView: View {
     }
 
     // MARK: Screenshot
-    @State private var showScreenshotEditor = false {
-        didSet { floatingPanelManager.isScreenshotEditorOpen = showScreenshotEditor }
+    @State private var editorConfig: EditorConfig? {
+        didSet { floatingPanelManager.isScreenshotEditorOpen = editorConfig != nil }
     }
     @State private var editedScreenshotData: Data?
 
     private var activeScreenshotData: Data? {
-        editedScreenshotData ?? screenshotData
+        if screenshotCleared { return nil }
+        return editedScreenshotData ?? screenshotData
     }
 
     private var activeScreenshotImage: NSImage? {
+        if screenshotCleared { return nil }
         if let data = editedScreenshotData, let img = NSImage(data: data) {
             return img
         }
         return screenshot
     }
 
-    private var screenshotSection: some View {
-        VStack(spacing: 0) {
-            Button { withAnimation(.easeInOut(duration: 0.2)) { isScreenshotExpanded.toggle() } } label: {
-                HStack {
-                    Image(systemName: "photo").font(.system(size: 11)).foregroundStyle(.secondary)
-                    Text("Screen Context").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
-                    Spacer()
-                    Image(systemName: isScreenshotExpanded ? "chevron.up" : "chevron.down").font(.system(size: 10)).foregroundStyle(.tertiary)
-                }.padding(.horizontal, 14).padding(.vertical, 8)
-            }.buttonStyle(.plain)
+    private var contextSidebarView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Context")
+                .font(.system(size: 14, weight: .bold))
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                
+            Divider().opacity(0.5)
             
-            if isScreenshotExpanded, let img = activeScreenshotImage {
-                Button {
-                    showScreenshotEditor = true
-                } label: {
-                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(maxHeight: 140)
-                        .clipShape(RoundedRectangle(cornerRadius: 8)).padding(.horizontal, 14).padding(.bottom, 10)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                        .overlay(
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(.white, .black.opacity(0.5))
-                                .opacity(0.8)
-                        )
-                }
-                .buttonStyle(.plain)
-                .sheet(isPresented: $showScreenshotEditor) {
-                    ScreenshotEditorView(originalImage: screenshot!) { data in
-                        if let d = data {
-                            self.editedScreenshotData = d
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    if !screenshotCleared, let img = activeScreenshotImage, let original = screenshot {
+                        VStack(spacing: 4) {
+                            ZStack(alignment: .topTrailing) {
+                                Button {
+                                    editorConfig = EditorConfig(image: original) { data in
+                                        if let d = data {
+                                            self.editedScreenshotData = d
+                                            if var last = floatingPanelManager.recentCaptures.last, let newImg = NSImage(data: d) {
+                                                let updated = RecentCapture(image: newImg, data: d, timestamp: last.timestamp)
+                                                floatingPanelManager.recentCaptures[floatingPanelManager.recentCaptures.count - 1] = updated
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    Image(nsImage: img)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .frame(maxWidth: .infinity)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(selectedContextId == "screenshot" ? Color.blue : Color.clear, lineWidth: 2)
+                                        )
+                                        .overlay(
+                                            Image(systemName: "pencil.circle.fill")
+                                                .font(.system(size: 24))
+                                                .foregroundStyle(.white, .black.opacity(0.5))
+                                                .opacity(0.8)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                
+                                Button {
+                                    screenshotCleared = true
+                                    editedScreenshotData = nil
+                                    if selectedContextId == "screenshot" { selectedContextId = nil }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.white, .black.opacity(0.6))
+                                        .background(Circle().fill(.white).opacity(0.2))
+                                }
+                                .buttonStyle(.plain)
+                                .offset(x: 6, y: -6)
+                            }
+                            
+                            Text("Screenshot")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
                         }
-                        self.showScreenshotEditor = false
+                        .focusable()
+                        .focused($focusedContextId, equals: "screenshot")
+                        .onTapGesture {
+                            selectedContextId = "screenshot"
+                            focusedContextId = "screenshot"
+                        }
+                        .onDeleteCommand {
+                            if selectedContextId == "screenshot" {
+                                screenshotCleared = true
+                                editedScreenshotData = nil
+                                selectedContextId = nil
+                            }
+                        }
+                    }
+                    
+                    ForEach(attachments) { attachment in
+                        VStack(spacing: 4) {
+                            ZStack(alignment: .topTrailing) {
+                                if attachment.mimeType.starts(with: "image/"), let img = NSImage(data: attachment.data) {
+                                    Button {
+                                        editorConfig = EditorConfig(image: img) { data in
+                                            if let d = data {
+                                                if let index = attachments.firstIndex(where: { $0.id == attachment.id }) {
+                                                    attachments[index] = ChatAttachment(id: attachment.id, name: attachment.name, data: d, mimeType: attachment.mimeType)
+                                                    
+                                                    // Also update in recentCaptures if it corresponds to one
+                                                    if let rcIndex = floatingPanelManager.recentCaptures.firstIndex(where: { $0.data == attachment.data }), let newImg = NSImage(data: d) {
+                                                        let old = floatingPanelManager.recentCaptures[rcIndex]
+                                                        floatingPanelManager.recentCaptures[rcIndex] = RecentCapture(image: newImg, data: d, timestamp: old.timestamp)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        attachmentIcon(for: attachment)
+                                            .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 120)
+                                            .background(.white.opacity(0.1))
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(selectedContextId == attachment.id.uuidString ? Color.blue : Color.clear, lineWidth: 2)
+                                            )
+                                            .overlay(
+                                                Image(systemName: "pencil.circle.fill")
+                                                    .font(.system(size: 24))
+                                                    .foregroundStyle(.white, .black.opacity(0.5))
+                                                    .opacity(0.8)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    attachmentIcon(for: attachment)
+                                        .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 120)
+                                        .background(.white.opacity(0.1))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(selectedContextId == attachment.id.uuidString ? Color.blue : Color.clear, lineWidth: 2)
+                                        )
+                                }
+                                
+                                Button {
+                                    attachments.removeAll { $0.id == attachment.id }
+                                    if selectedContextId == attachment.id.uuidString { selectedContextId = nil }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.white, .gray)
+                                }
+                                .buttonStyle(.plain)
+                                .offset(x: 6, y: -6)
+                            }
+                            Text(attachment.name)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .focusable()
+                        .focused($focusedContextId, equals: attachment.id.uuidString)
+                        .onTapGesture {
+                            selectedContextId = attachment.id.uuidString
+                            focusedContextId = attachment.id.uuidString
+                        }
+                        .onDeleteCommand {
+                            if selectedContextId == attachment.id.uuidString {
+                                attachments.removeAll { $0.id == attachment.id }
+                                selectedContextId = nil
+                            }
+                        }
                     }
                 }
+                .padding(14)
             }
-            Divider().opacity(0.3)
         }
+        .background(Color.black.opacity(0.15))
     }
 
     // MARK: Chat Area
@@ -473,7 +667,7 @@ struct ChatView: View {
             Spacer()
             Image(systemName: "sparkles").font(.system(size: 32))
                 .foregroundStyle(.linearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-            Text("Ask about what's on screen").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
+            Text("Ask about anything").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
             Text(screenshot != nil ? "I can see your screen — ask me anything" : "Shake your mouse to capture context")
                 .font(.system(size: 12)).foregroundStyle(.tertiary)
             Spacer()
@@ -510,41 +704,6 @@ struct ChatView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 5)
                 .background(.blue.opacity(0.06))
-                Divider().opacity(0.2)
-            }
-            
-            if !attachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(attachments) { attachment in
-                            ZStack(alignment: .topTrailing) {
-                                VStack(spacing: 4) {
-                                    attachmentIcon(for: attachment)
-                                        .frame(width: 40, height: 40)
-                                        .background(.white.opacity(0.1))
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    Text(attachment.name)
-                                        .font(.system(size: 9))
-                                        .lineLimit(1)
-                                        .frame(width: 50)
-                                }
-                                
-                                Button {
-                                    attachments.removeAll { $0.id == attachment.id }
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.white, .gray)
-                                }
-                                .buttonStyle(.plain)
-                                .offset(x: 5, y: -5)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
                 Divider().opacity(0.2)
             }
             
@@ -654,7 +813,21 @@ struct ChatView: View {
                 case .success(let full): 
                     messages.append(ChatMessage(role: .assistant, content: full))
                     streamingText = ""
-                    attachments.removeAll() // Clear after success
+                    
+                    var imageCount = activeScreenshotData != nil ? 1 : 0
+                    var nextAttachments = [ChatAttachment]()
+                    for attachment in attachments.reversed() {
+                        if attachment.mimeType.starts(with: "image/") {
+                            if imageCount < 10 {
+                                nextAttachments.insert(attachment, at: 0)
+                                imageCount += 1
+                            }
+                        } else {
+                            nextAttachments.insert(attachment, at: 0)
+                        }
+                    }
+                    attachments = nextAttachments
+                    
                     saveCurrentSession()
                 case .failure(let err): 
                     errorMessage = err.localizedDescription
@@ -695,6 +868,9 @@ struct ChatView: View {
         streamingText = ""
         errorMessage = nil
         currentSessionId = UUID()
+        screenshotCleared = false
+        editedScreenshotData = screenshotData
+        selectedContextId = nil
     }
     
     // MARK: File Handling
@@ -707,20 +883,44 @@ struct ChatView: View {
         // Guard against auto-dismiss while file picker is open
         floatingPanelManager.isFilePickerOpen = true
         
-        if panel.runModal() == .OK {
-            for url in panel.urls {
-                addFile(url: url)
-            }
-        }
+        // Bring app to front so panel isn't behind other apps
+        NSApp.activate(ignoringOtherApps: true)
         
-        // Allow auto-dismiss again
-        floatingPanelManager.isFilePickerOpen = false
+        if let window = NSApp.windows.first(where: { $0.isKeyWindow || $0.isMainWindow }) {
+            panel.beginSheetModal(for: window) { response in
+                if response == .OK {
+                    for url in panel.urls {
+                        self.addFile(url: url)
+                    }
+                }
+                // Allow auto-dismiss again
+                self.floatingPanelManager.isFilePickerOpen = false
+            }
+        } else {
+            panel.level = .modalPanel
+            if panel.runModal() == .OK {
+                for url in panel.urls {
+                    addFile(url: url)
+                }
+            }
+            // Allow auto-dismiss again
+            floatingPanelManager.isFilePickerOpen = false
+        }
     }
     
     private func addFile(url: URL) {
         guard let data = try? Data(contentsOf: url) else { return }
         let name = url.lastPathComponent
         let mimeType = getMimeType(for: url)
+        
+        let isImage = mimeType.starts(with: "image/")
+        if isImage {
+            let currentImageCount = (activeScreenshotData != nil ? 1 : 0) + attachments.filter { $0.mimeType.starts(with: "image/") }.count
+            if currentImageCount >= 10 {
+                errorMessage = "Maximum of 10 images allowed at once."
+                return
+            }
+        }
         
         withAnimation {
             attachments.append(ChatAttachment(name: name, data: data, mimeType: mimeType))

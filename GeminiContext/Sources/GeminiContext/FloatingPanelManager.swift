@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+struct RecentCapture {
+    let image: NSImage
+    let data: Data
+    let timestamp: Date
+}
+
 /// Manages the lifecycle of the floating AI chat panel.
 /// Ensures only one panel exists at a time.
 final class FloatingPanelManager: NSObject, ObservableObject {
@@ -12,13 +18,15 @@ final class FloatingPanelManager: NSObject, ObservableObject {
         }
     }
     
+    @Published var recentCaptures: [RecentCapture] = []
+    
     /// Guards against dismissal when NSOpenPanel or screenshot editor is open.
     @Published var isFilePickerOpen = false
     @Published var isScreenshotEditorOpen = false
     
     private var currentPanel: FloatingPanel?
     private var eventMonitor: Any?
-    private let expandedSize = NSSize(width: 480, height: 580)
+    private let expandedSize = NSSize(width: 700, height: 600)
     private let pillSize = NSSize(width: 500, height: 56)
 
     private override init() {
@@ -28,6 +36,19 @@ final class FloatingPanelManager: NSObject, ObservableObject {
     @MainActor
     func showPanel(at point: NSPoint, with screenshot: NSImage?, screenshotData: Data? = nil, expandImmediately: Bool = false, activeContext: ActiveWindowContext? = nil) {
         dismissPanel(force: true)
+        
+        let now = Date()
+        // clean up captures older than 1 minute
+        recentCaptures.removeAll { now.timeIntervalSince($0.timestamp) > 60 }
+        
+        if let screenshot = screenshot, let data = screenshotData {
+            recentCaptures.append(RecentCapture(image: screenshot, data: data, timestamp: now))
+        }
+        
+        // Enforce maximum of 10 recent captures sent to AI at once
+        if recentCaptures.count > 10 {
+            recentCaptures.removeFirst(recentCaptures.count - 10)
+        }
         
         // Reset pin state on new invocation
         isPinned = false

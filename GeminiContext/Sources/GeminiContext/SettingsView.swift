@@ -65,6 +65,12 @@ struct SettingsView: View {
             .padding(.top, 24)
         }
         .frame(width: 700, height: 550)
+        .onAppear {
+            NSApp.activate(ignoringOtherApps: true)
+            if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "settings" || $0.title == "Settings" }) {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
     }
 }
 

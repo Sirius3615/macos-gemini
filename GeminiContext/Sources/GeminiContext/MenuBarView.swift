@@ -14,7 +14,7 @@ struct MenuBarView: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(.white)
                 Text("AI Context")
                     .font(.system(size: 14, weight: .bold))
             }
@@ -75,7 +75,7 @@ struct MenuBarView: View {
                             Image(systemName: persona.icon)
                                 .font(.system(size: 11))
                                 .frame(width: 16)
-                                .foregroundStyle(settings.activePersonaIndex == index ? .purple : .secondary)
+                                .foregroundStyle(settings.activePersonaIndex == index ? .white : .secondary)
                             Text(persona.name)
                                 .font(.system(size: 12, weight: settings.activePersonaIndex == index ? .semibold : .regular))
                             Spacer()
