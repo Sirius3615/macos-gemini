@@ -26,7 +26,7 @@ struct MenuBarView: View {
 
             // Permissions section
             VStack(alignment: .leading, spacing: 8) {
-                if permissions.isAccessibilityGranted && permissions.isScreenRecordingGranted {
+                if permissions.isAccessibilityGranted && permissions.isScreenRecordingGranted && permissions.isCalendarGranted {
                     HStack {
                         Image(systemName: "checkmark.shield.fill")
                             .foregroundStyle(.green)
@@ -51,6 +51,13 @@ struct MenuBarView: View {
                         icon: "rectangle.dashed.badge.record",
                         isGranted: permissions.isScreenRecordingGranted,
                         action: permissions.openScreenRecordingSettings
+                    )
+
+                    permissionRow(
+                        title: "Calendar",
+                        icon: "calendar",
+                        isGranted: permissions.isCalendarGranted,
+                        action: permissions.openCalendarSettings
                     )
                 }
             }
@@ -110,10 +117,30 @@ struct MenuBarView: View {
 
             Divider()
 
+            // Open Chat button
+            Button(action: {
+                ChatWindowManager.shared.openRegularChatWindow()
+            }) {
+                HStack {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                    Text("Open Chat Window")
+                }
+                .font(.system(size: 13))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+
             // Settings button
             Button(action: {
                 NSApp.activate(ignoringOtherApps: true)
                 openWindow(id: "settings")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "settings" || $0.title == "Settings" }) {
+                        window.makeKeyAndOrderFront(nil)
+                    }
+                }
             }) {
                 HStack {
                     Image(systemName: "gear")

@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import UniformTypeIdentifiers
 
 struct EditorConfig: Identifiable {
     let id = UUID()
@@ -16,8 +17,10 @@ struct ChatView: View {
     let onDismiss: () -> Void
     var onResize: ((NSSize) -> Void)?
     var initiallyExpanded: Bool = false
+    var isRegularWindow: Bool = false
 
     @StateObject private var geminiService = GeminiService()
+    @StateObject private var ollamaService = OllamaService()
     @ObservedObject private var settings = SettingsManager.shared
     @ObservedObject private var history = ChatHistoryManager.shared
     @ObservedObject private var floatingPanelManager = FloatingPanelManager.shared
@@ -31,6 +34,7 @@ struct ChatView: View {
     @State private var currentSessionId: UUID?
     @State private var isExpanded = false
     @FocusState private var isInputFocused: Bool
+    @FocusState private var isSearchFocused: Bool
 
     @State private var showSidebar = false
     @State private var showContextSidebar = true
@@ -39,8 +43,23 @@ struct ChatView: View {
     @State private var selectedContextId: String?
     @FocusState private var focusedContextId: String?
     
+    // Smart image gating state
+    @State private var screenshotSentThisSession: Bool = false
+    @State private var screenshotForceIncluded: Bool = false
+    
     // File drop support
     @State private var attachments: [ChatAttachment] = []
+    @State private var isTargeted = false
+    
+    /// Whether the active service is currently generating
+    private var isActiveServiceGenerating: Bool {
+        settings.activeProvider == .ollama ? ollamaService.isGenerating : geminiService.isGenerating
+    }
+    
+    /// Status message from the active service
+    private var activeStatusMessage: String? {
+        settings.activeProvider == .ollama ? ollamaService.statusMessage : geminiService.statusMessage
+    }
 
     var body: some View {
         Group {
@@ -51,13 +70,25 @@ struct ChatView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
-        .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 16 : 36))
+        .background(
+            ZStack {
+                if isRegularWindow {
+                    Color(red: 0.05, green: 0.05, blue: 0.08)
+                        .ignoresSafeArea()
+                    LiquidBlobsView()
+                    VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
+                        .ignoresSafeArea()
+                } else {
+                    VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                }
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: isRegularWindow ? 12 : (isExpanded ? 16 : 36)))
         .overlay(
-            RoundedRectangle(cornerRadius: isExpanded ? 16 : 36)
+            RoundedRectangle(cornerRadius: isRegularWindow ? 12 : (isExpanded ? 16 : 36))
                 .stroke(
                     LinearGradient(
-                        colors: [.white.opacity(0.4), .white.opacity(0.05)],
+                        colors: [.white.opacity(isRegularWindow ? 0.18 : 0.4), .white.opacity(0.05)],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
@@ -86,23 +117,22 @@ struct ChatView: View {
                 
                 let previousCaptures = recentCaptures.dropLast()
                 
-                for (index, capture) in previousCaptures.enumerated() {
-                    // Only add if not already in attachments to avoid duplicates
-                    // Use index to avoid matching data since data might've been edited slightly
-                    if !attachments.contains(where: { $0.name == "Context \\(index+1).jpg" }) {
+                for capture in previousCaptures {
+                    let name = "Screenshot \(Int(capture.timestamp.timeIntervalSince1970)).jpg"
+                    if !attachments.contains(where: { $0.name == name }) {
                         let currentImageCount = (activeScreenshotData != nil ? 1 : 0) + attachments.filter { $0.mimeType.starts(with: "image/") }.count
                         if currentImageCount < 10 {
                             attachments.append(ChatAttachment(
-                                name: "Context \\(index+1).jpg",
+                                name: name,
                                 data: capture.data,
                                 mimeType: "image/jpeg"
                             ))
                         }
-                    } else if let attIndex = attachments.firstIndex(where: { $0.name == "Context \\(index+1).jpg" }) {
+                    } else if let attIndex = attachments.firstIndex(where: { $0.name == name }) {
                         // ensure it has latest potentially edited data
                         attachments[attIndex] = ChatAttachment(
                             id: attachments[attIndex].id,
-                            name: "Context \\(index+1).jpg",
+                            name: name,
                             data: capture.data,
                             mimeType: "image/jpeg"
                         )
@@ -135,6 +165,66 @@ struct ChatView: View {
                 self.editorConfig = nil
             }
         }
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+            guard isExpanded else { return false } // Only allow file drops in regular (full) chat mode
+            let group = DispatchGroup()
+            var urlsToLoad: [URL] = []
+            
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    group.enter()
+                    provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (data, error) in
+                        defer { group.leave() }
+                        if let data = data as? Data,
+                           let url = URL(dataRepresentation: data, relativeTo: nil) {
+                            urlsToLoad.append(url)
+                        } else if let url = data as? URL {
+                            urlsToLoad.append(url)
+                        }
+                    }
+                }
+            }
+            
+            group.notify(queue: .main) {
+                for url in urlsToLoad {
+                    self.addFile(url: url)
+                }
+            }
+            return true
+        }
+        .overlay {
+            if isTargeted && isExpanded {
+                ZStack {
+                    VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
+                    
+                    VStack(spacing: 16) {
+                        Image(systemName: "arrow.down.doc.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.linearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .scaleEffect(isTargeted ? 1.1 : 1.0)
+                        
+                        Text("Drop files to attach to chat")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.primary)
+                        
+                        Text("Supports images, PDFs, text, and code files")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(30)
+                    .background(.white.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                LinearGradient(colors: [.purple.opacity(0.6), .blue.opacity(0.6)], startPoint: .top, endPoint: .bottom),
+                                style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round, dash: [6, 4])
+                            )
+                    )
+                }
+                .transition(.opacity)
+            }
+        }
     }
     
     private var expandedView: some View {
@@ -143,24 +233,33 @@ struct ChatView: View {
                 sidebarView
                     .frame(width: 200)
                     .transition(.move(edge: .leading))
-                Divider()
+                
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 1)
             }
             
             VStack(spacing: 0) {
                 titleBar
-                Divider().opacity(0.3)
+                
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: 1)
+                
                 if !settings.hasAPIKey {
                     apiKeySetupView
                 } else {
                     chatArea
-                    Divider().opacity(0.3)
                     inputBar
                 }
             }
             .frame(minWidth: 400, minHeight: 400)
             
             if showContextSidebar {
-                Divider()
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 1)
+                
                 contextSidebarView
                     .frame(width: 200)
                     .transition(.move(edge: .trailing))
@@ -207,8 +306,12 @@ struct ChatView: View {
             }
             
             Button(action: {
-                isExpanded = true
-                onResize?(NSSize(width: 700, height: 600))
+                onDismiss() // Dismiss the floating panel
+                ChatWindowManager.shared.openRegularChatWindow(
+                    screenshot: screenshot,
+                    screenshotData: screenshotData,
+                    activeContext: activeContext
+                )
             }) {
                 Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                     .font(.system(size: 16))
@@ -266,22 +369,37 @@ struct ChatView: View {
             Text("Chat History")
                 .font(.system(size: 14, weight: .bold))
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.top, isRegularWindow ? 42 : 16) // Extra padding to avoid macOS traffic light controls
                 .padding(.bottom, 8)
                 
             HStack {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
                 TextField("Search...", text: $searchText)
                     .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .focused($isSearchFocused)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.white.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(Color.black.opacity(isSearchFocused ? 0.35 : 0.18))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        isSearchFocused 
+                            ? AnyShapeStyle(LinearGradient(colors: [.purple.opacity(0.5), .blue.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
+                            : AnyShapeStyle(Color.white.opacity(0.06)),
+                        lineWidth: 1
+                    )
+            )
             .padding(.horizontal, 12)
             .padding(.bottom, 12)
             
-            Divider().opacity(0.5)
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 1)
             
             ScrollView {
                 LazyVStack(spacing: 4) {
@@ -298,7 +416,15 @@ struct ChatView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(currentSessionId == session.id ? Color.white.opacity(0.1) : Color.clear)
+                            .background(
+                                currentSessionId == session.id 
+                                ? AnyView(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.white.opacity(0.06))
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                                  )
+                                : AnyView(Color.clear)
+                            )
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
@@ -308,7 +434,7 @@ struct ChatView: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(Color.black.opacity(0.15))
+        .background(Color.black.opacity(0.2))
     }
     
     private func loadSession(_ session: ChatSession) {
@@ -325,12 +451,14 @@ struct ChatView: View {
         HStack(alignment: .center, spacing: 8) {
             // Window controls & Sidebar toggle
             HStack(spacing: 12) {
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.red.opacity(0.8))
+                if !isRegularWindow {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.red.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 
                 Button(action: { showSidebar.toggle() }) {
                     Image(systemName: "line.3.horizontal")
@@ -340,14 +468,20 @@ struct ChatView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.leading, (isRegularWindow && !showSidebar) ? 68 : 0) // Leaves safety space for traffic light window controls
             
             Spacer()
             
             VStack(spacing: 6) {
                 Button(action: { showModelPicker.toggle() }) {
                     HStack(spacing: 5) {
-                        Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundStyle(.purple)
-                        Text(settings.selectedModel.displayName).font(.system(size: 12, weight: .medium))
+                        if settings.activeProvider == .ollama {
+                            Image(systemName: "desktopcomputer").font(.system(size: 11, weight: .semibold)).foregroundStyle(.cyan)
+                            Text(settings.ollamaModelName.isEmpty ? "Ollama" : settings.ollamaModelName).font(.system(size: 12, weight: .medium))
+                        } else {
+                            Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundStyle(.purple)
+                            Text(settings.selectedModel.displayName).font(.system(size: 12, weight: .medium))
+                        }
                         Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(.tertiary)
                     }
                     .padding(.horizontal, 10).padding(.vertical, 5)
@@ -414,21 +548,35 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Model").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                 .textCase(.uppercase).padding(.horizontal, 12).padding(.top, 8)
-            ForEach(GeminiModel.allCases) { model in
-                Button {
-                    settings.selectedModel = model; geminiService.selectedModel = model; showModelPicker = false
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(model.displayName).font(.system(size: 13, weight: .medium))
-                            Text(model.description).font(.system(size: 11)).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if settings.selectedModel == model {
-                            Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(.purple)
-                        }
-                    }.padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle())
-                }.buttonStyle(.plain)
+            if settings.activeProvider == .ollama {
+                // Ollama: show the configured model name
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(settings.ollamaModelName.isEmpty ? "No model configured" : settings.ollamaModelName)
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Local · Ollama")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(.cyan)
+                }.padding(.horizontal, 12).padding(.vertical, 8)
+            } else {
+                ForEach(GeminiModel.allCases) { model in
+                    Button {
+                        settings.selectedModel = model; geminiService.selectedModel = model; showModelPicker = false
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(model.displayName).font(.system(size: 13, weight: .medium))
+                                Text(model.description).font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if settings.selectedModel == model {
+                                Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(.purple)
+                            }
+                        }.padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
             }
         }.padding(.vertical, 4).frame(width: 220)
     }
@@ -445,7 +593,14 @@ struct ChatView: View {
                 SecureField("Paste your API key...", text: $apiKeyInput)
                     .textFieldStyle(.plain).font(.system(size: 13))
                     .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black.opacity(0.2))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
                     .frame(maxWidth: 300).onSubmit { saveAPIKey() }
                 Button(action: saveAPIKey) {
                     Text("Save & Connect").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
@@ -487,7 +642,9 @@ struct ChatView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 8)
                 
-            Divider().opacity(0.5)
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 1)
             
             ScrollView {
                 LazyVStack(spacing: 12) {
@@ -512,7 +669,12 @@ struct ChatView: View {
                                         .frame(maxWidth: .infinity)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .stroke(selectedContextId == "screenshot" ? Color.blue : Color.clear, lineWidth: 2)
+                                                .stroke(
+                                                    selectedContextId == "screenshot" 
+                                                    ? AnyShapeStyle(LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                    : AnyShapeStyle(Color.white.opacity(0.1)),
+                                                    lineWidth: 2
+                                                )
                                         )
                                         .overlay(
                                             Image(systemName: "pencil.circle.fill")
@@ -581,7 +743,12 @@ struct ChatView: View {
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(selectedContextId == attachment.id.uuidString ? Color.blue : Color.clear, lineWidth: 2)
+                                                    .stroke(
+                                                        selectedContextId == attachment.id.uuidString 
+                                                        ? AnyShapeStyle(LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                        : AnyShapeStyle(Color.white.opacity(0.1)),
+                                                        lineWidth: 2
+                                                    )
                                             )
                                             .overlay(
                                                 Image(systemName: "pencil.circle.fill")
@@ -598,7 +765,12 @@ struct ChatView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 8))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .stroke(selectedContextId == attachment.id.uuidString ? Color.blue : Color.clear, lineWidth: 2)
+                                                .stroke(
+                                                    selectedContextId == attachment.id.uuidString 
+                                                    ? AnyShapeStyle(LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                    : AnyShapeStyle(Color.white.opacity(0.1)),
+                                                    lineWidth: 2
+                                                )
                                         )
                                 }
                                 
@@ -636,7 +808,7 @@ struct ChatView: View {
                 .padding(14)
             }
         }
-        .background(Color.black.opacity(0.15))
+        .background(Color.black.opacity(0.2))
     }
 
     // MARK: Chat Area
@@ -644,20 +816,47 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    if messages.isEmpty && !geminiService.isGenerating { emptyState }
+                    if messages.isEmpty && !isActiveServiceGenerating { emptyState }
                     ForEach(messages) { msg in MessageBubble(message: msg).id(msg.id) }
-                    if geminiService.isGenerating && !streamingText.isEmpty {
+                    if isActiveServiceGenerating && !streamingText.isEmpty {
                         StreamingBubble(text: streamingText).id("streaming")
                     }
-                    if geminiService.isGenerating && streamingText.isEmpty { TypingIndicator().id("typing") }
+                    if let status = activeStatusMessage {
+                        StatusBubble(message: status).id("status")
+                    }
+                    if isActiveServiceGenerating && streamingText.isEmpty && activeStatusMessage == nil {
+                        TypingIndicator().id("typing")
+                    }
                     if let err = errorMessage { ErrorBubble(message: err).id("error") }
                 }.padding(14)
             }
             .onChange(of: streamingText) { _, _ in
-                if geminiService.isGenerating { withAnimation(.easeOut(duration: 0.1)) { proxy.scrollTo("streaming", anchor: .bottom) } }
+                if isActiveServiceGenerating { withAnimation(.easeOut(duration: 0.1)) { proxy.scrollTo("streaming", anchor: .bottom) } }
+            }
+            .onChange(of: geminiService.statusMessage) { _, newValue in
+                if newValue != nil {
+                    withAnimation { proxy.scrollTo("status", anchor: .bottom) }
+                }
+            }
+            .onChange(of: ollamaService.statusMessage) { _, newValue in
+                if newValue != nil {
+                    withAnimation { proxy.scrollTo("status", anchor: .bottom) }
+                }
             }
             .onChange(of: messages.count) { _, _ in
                 if let id = messages.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } }
+            }
+            .onChange(of: isActiveServiceGenerating) { _, isGen in
+                // Keep the chat panel pinned while the agent is running autonomously
+                floatingPanelManager.isPinned = isGen
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CancelAgentGeneration"))) { _ in
+                // Stop agent generation globally
+                if settings.activeProvider == .ollama {
+                    ollamaService.cancelGeneration()
+                } else {
+                    geminiService.cancelGeneration()
+                }
             }
         }
     }
@@ -710,8 +909,12 @@ struct ChatView: View {
             HStack(spacing: 12) {
                 Button(action: openFilePicker) {
                     Image(systemName: "paperclip")
-                        .font(.system(size: 18))
+                        .font(.system(size: 16))
                         .foregroundStyle(.secondary)
+                        .padding(6)
+                        .background(.white.opacity(0.04))
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(.white.opacity(0.08), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 
@@ -722,31 +925,76 @@ struct ChatView: View {
                     .onSubmit(sendMessage)
                 
                 // Token estimation label
-                Text(tokenEstimateLabel)
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.tertiary)
-                    .help("Estimated token count for current context")
+                if !inputText.isEmpty {
+                    Text(tokenEstimateLabel)
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
                 
-                if geminiService.isGenerating {
-                    Button(action: { geminiService.cancelGeneration() }) {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.red)
+                if isActiveServiceGenerating {
+                    Button(action: {
+                        if settings.activeProvider == .ollama {
+                            ollamaService.cancelGeneration()
+                        } else {
+                            geminiService.cancelGeneration()
+                        }
+                    }) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Color.red.opacity(0.8))
+                            .clipShape(Circle())
+                            .shadow(color: .red.opacity(0.4), radius: 4)
                     }.buttonStyle(.plain)
                 } else {
                     Button(action: sendMessage) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty 
-                                             ? AnyShapeStyle(.secondary.opacity(0.5)) 
-                                             : AnyShapeStyle(.primary))
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty ? .white.opacity(0.4) : .white)
+                            .frame(width: 26, height: 26)
+                            .background(
+                                LinearGradient(
+                                    colors: inputText.trimmingCharacters(in: .whitespaces).isEmpty 
+                                        ? [.white.opacity(0.1), .white.opacity(0.05)]
+                                        : [.purple, .blue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .clipShape(Circle())
+                            .shadow(color: inputText.trimmingCharacters(in: .whitespaces).isEmpty ? .clear : .purple.opacity(0.4), radius: 6)
                     }
                     .buttonStyle(.plain)
                     .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.black.opacity(isInputFocused ? 0.35 : 0.2))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        LinearGradient(
+                            colors: isInputFocused 
+                                ? [.purple.opacity(0.6), .blue.opacity(0.4)]
+                                : [.white.opacity(0.08), .white.opacity(0.03)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            )
+            .shadow(color: isInputFocused ? .purple.opacity(0.15) : .clear, radius: 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
     }
     
@@ -802,39 +1050,73 @@ struct ChatView: View {
         // Save initial state
         saveCurrentSession()
         
-        geminiService.streamGenerate(
-            prompt: text, imageData: activeScreenshotData,
-            attachments: attachments,
-            activeContextText: activeContext?.contextDescription,
-            conversationHistory: Array(messages.dropLast()),
-            onToken: { streamingText += $0 },
-            onComplete: { result in
-                switch result {
-                case .success(let full): 
-                    messages.append(ChatMessage(role: .assistant, content: full))
-                    streamingText = ""
-                    
-                    var imageCount = activeScreenshotData != nil ? 1 : 0
-                    var nextAttachments = [ChatAttachment]()
-                    for attachment in attachments.reversed() {
-                        if attachment.mimeType.starts(with: "image/") {
-                            if imageCount < 10 {
-                                nextAttachments.insert(attachment, at: 0)
-                                imageCount += 1
-                            }
-                        } else {
-                            nextAttachments.insert(attachment, at: 0)
-                        }
-                    }
-                    attachments = nextAttachments
-                    
-                    saveCurrentSession()
-                case .failure(let err): 
-                    errorMessage = err.localizedDescription
-                    streamingText = ""
+        // Determine image data based on smart gating
+        let effectiveImageData: Data?
+        let deferredImageData: Data?
+        
+        if settings.smartImageGating && !screenshotSentThisSession && !screenshotForceIncluded {
+            // Smart gating: defer the screenshot, let the AI decide
+            effectiveImageData = nil
+            deferredImageData = activeScreenshotData
+        } else {
+            // Either gating is off, screenshot was already sent, or user force-included
+            effectiveImageData = activeScreenshotData
+            deferredImageData = nil
+        }
+        
+        let completionHandler: @MainActor (Result<String, Error>) -> Void = { result in
+            switch result {
+            case .success(let full): 
+                messages.append(ChatMessage(role: .assistant, content: full))
+                streamingText = ""
+                
+                // Mark screenshot as sent if it was used (either directly or via tool)
+                if effectiveImageData != nil || deferredImageData != nil {
+                    screenshotSentThisSession = true
                 }
+                
+                var imageCount = activeScreenshotData != nil ? 1 : 0
+                var nextAttachments = [ChatAttachment]()
+                for attachment in attachments.reversed() {
+                    if attachment.mimeType.starts(with: "image/") {
+                        if imageCount < 10 {
+                            nextAttachments.insert(attachment, at: 0)
+                            imageCount += 1
+                        }
+                    } else {
+                        nextAttachments.insert(attachment, at: 0)
+                    }
+                }
+                attachments = nextAttachments
+                
+                saveCurrentSession()
+            case .failure(let err): 
+                errorMessage = err.localizedDescription
+                streamingText = ""
             }
-        )
+        }
+        
+        if settings.activeProvider == .ollama {
+            ollamaService.streamGenerate(
+                prompt: text, imageData: effectiveImageData,
+                attachments: attachments,
+                activeContextText: activeContext?.contextDescription,
+                conversationHistory: Array(messages.dropLast()),
+                deferredImageData: deferredImageData,
+                onToken: { streamingText += $0 },
+                onComplete: completionHandler
+            )
+        } else {
+            geminiService.streamGenerate(
+                prompt: text, imageData: effectiveImageData,
+                attachments: attachments,
+                activeContextText: activeContext?.contextDescription,
+                conversationHistory: Array(messages.dropLast()),
+                deferredImageData: deferredImageData,
+                onToken: { streamingText += $0 },
+                onComplete: completionHandler
+            )
+        }
     }
     
     private func saveCurrentSession() {
@@ -858,11 +1140,13 @@ struct ChatView: View {
         case .openai: settings.openaiApiKey = k
         case .claude: settings.claudeApiKey = k
         case .deepseek: settings.deepseekApiKey = k
+        case .ollama: break // Ollama doesn't use API keys
         }
         apiKeyInput = ""
     }
     private func clearConversation() {
         geminiService.cancelGeneration()
+        ollamaService.cancelGeneration()
         messages.removeAll()
         attachments.removeAll()
         streamingText = ""
@@ -871,6 +1155,8 @@ struct ChatView: View {
         screenshotCleared = false
         editedScreenshotData = screenshotData
         selectedContextId = nil
+        screenshotSentThisSession = false
+        screenshotForceIncluded = false
     }
     
     // MARK: File Handling
@@ -1398,5 +1684,88 @@ struct VisualEffectView: NSViewRepresentable {
     func updateNSView(_ visualEffectView: NSVisualEffectView, context: Context) {
         visualEffectView.material = material
         visualEffectView.blendingMode = blendingMode
+    }
+}
+
+// MARK: - StatusBubble
+
+struct StatusBubble: View {
+    let message: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.small)
+                .scaleEffect(0.8)
+            Text(message)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.purple)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color.purple.opacity(0.12))
+                .overlay(
+                    Capsule()
+                        .stroke(Color.purple.opacity(0.24), lineWidth: 1)
+                )
+        )
+        .transition(.opacity.combined(with: .scale))
+    }
+}
+
+// MARK: - LiquidBlobsView
+
+struct LiquidBlobsView: View {
+    @State private var anim1 = false
+    @State private var anim2 = false
+    @State private var anim3 = false
+
+    var body: some View {
+        ZStack {
+            // Blob 1: Purple
+            RadialGradient(
+                colors: [Color.purple.opacity(0.22), Color.clear],
+                center: anim1 ? .topLeading : .center,
+                startRadius: 10,
+                endRadius: 350
+            )
+            .frame(width: 600, height: 600)
+            .offset(x: anim1 ? -150 : -250, y: anim1 ? -100 : -200)
+            
+            // Blob 2: Indigo/Blue
+            RadialGradient(
+                colors: [Color.blue.opacity(0.18), Color.clear],
+                center: anim2 ? .bottomTrailing : .center,
+                startRadius: 10,
+                endRadius: 400
+            )
+            .frame(width: 700, height: 700)
+            .offset(x: anim2 ? 200 : 300, y: anim2 ? 150 : 250)
+            
+            // Blob 3: Cyan/Teal
+            RadialGradient(
+                colors: [Color.cyan.opacity(0.1), Color.clear],
+                center: anim3 ? .topTrailing : .bottomLeading,
+                startRadius: 10,
+                endRadius: 300
+            )
+            .frame(width: 500, height: 500)
+            .offset(x: anim3 ? 150 : 50, y: anim3 ? -200 : -100)
+        }
+        .blur(radius: 60)
+        .ignoresSafeArea()
+        .onAppear {
+            withAnimation(.easeInOut(duration: 8.0).repeatForever(autoreverses: true)) {
+                anim1.toggle()
+            }
+            withAnimation(.easeInOut(duration: 10.0).repeatForever(autoreverses: true)) {
+                anim2.toggle()
+            }
+            withAnimation(.easeInOut(duration: 9.0).repeatForever(autoreverses: true)) {
+                anim3.toggle()
+            }
+        }
     }
 }

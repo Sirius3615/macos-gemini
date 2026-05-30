@@ -39,7 +39,57 @@ struct ChatAttachment: Identifiable, Equatable, Codable {
     let mimeType: String
 }
 
-/// Direct REST API client for Gemini with streaming SSE support.
+// MARK: - Gemini Type-Safe API Structs
+
+struct GeminiPart: Codable {
+    let text: String?
+    let inlineData: InlineData?
+    let functionCall: FunctionCall?
+    let functionResponse: FunctionResponse?
+    var thoughtSignature: String? = nil
+    
+    enum CodingKeys: String, CodingKey {
+        case text
+        case inlineData = "inline_data"
+        case functionCall
+        case functionResponse
+        case thoughtSignature = "thoughtSignature"
+    }
+}
+
+struct InlineData: Codable {
+    let mimeType: String
+    let data: String // Base64 encoded
+    
+    enum CodingKeys: String, CodingKey {
+        case mimeType = "mime_type"
+        case data
+    }
+}
+
+struct FunctionCall: Codable, Equatable {
+    let name: String
+    let args: [String: String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case name
+        case args
+    }
+}
+
+struct FunctionResponse: Codable {
+    let name: String
+    let response: [String: String]
+}
+
+struct GeminiContent: Codable {
+    let role: String
+    let parts: [GeminiPart]
+}
+
+// MARK: - GeminiService
+
+/// Direct REST API client for Gemini with streaming SSE support and Function Calling (Tools).
 /// No Firebase dependency — uses raw URLSession against generativelanguage.googleapis.com.
 final class GeminiService: ObservableObject {
 
@@ -47,19 +97,23 @@ final class GeminiService: ObservableObject {
 
     @Published var selectedModel: GeminiModel = .pro31Preview
     @Published var isGenerating: Bool = false
+    @Published var statusMessage: String? = nil
 
     /// Current streaming task (for cancellation).
     private var currentTask: Task<Void, Never>?
+    private let toolExecutor = LocalToolExecutor.shared
 
     // MARK: - Streaming Generation
 
     /// Sends a message with optional image context and streams the response token-by-token.
+    /// Supports recursive tool execution (autonomous file search and file reading).
     func streamGenerate(
         prompt: String,
         imageData: Data?,
         attachments: [ChatAttachment] = [],
         activeContextText: String? = nil,
         conversationHistory: [ChatMessage],
+        deferredImageData: Data? = nil,
         onToken: @escaping @MainActor (String) -> Void,
         onComplete: @escaping @MainActor (Result<String, Error>) -> Void
     ) {
@@ -75,25 +129,111 @@ final class GeminiService: ObservableObject {
         }
 
         isGenerating = true
+        statusMessage = nil
+
+        // Set deferred screenshot data for smart image gating
+        if let deferred = deferredImageData {
+            toolExecutor.deferredScreenshotData = deferred
+        }
 
         currentTask = Task {
+            // Reset overlay for this generation
+            await MainActor.run {
+                AgentOverlayManager.shared.resetForNewGeneration()
+            }
+            
             do {
-                let fullText = try await performStreamingRequest(
-                    prompt: prompt,
-                    imageData: imageData,
-                    attachments: attachments,
-                    activeContextText: activeContextText,
-                    conversationHistory: conversationHistory,
-                    apiKey: apiKey,
-                    onToken: onToken
-                )
+                var toolExchange: [GeminiContent] = []
+                var shouldContinue = true
+                var fullText = ""
+                var toolIterations = 0
+                let maxToolIterations = 100
+                // Track if screenshot was injected via the request_screenshot or take_screenshot tool
+                var injectedScreenshotData: Data? = nil
+                
+                while shouldContinue {
+                    try Task.checkCancellation()
+                    
+                    // Request current response (which may be a text chunk or a tool call)
+                    let (text, functionCall, thoughtSig) = try await performStreamingRequest(
+                        prompt: prompt,
+                        imageData: imageData,
+                        injectedScreenshotData: injectedScreenshotData,
+                        attachments: attachments,
+                        activeContextText: activeContextText,
+                        conversationHistory: conversationHistory,
+                        toolExchange: toolExchange,
+                        apiKey: apiKey,
+                        onToken: onToken
+                    )
+                    
+                    fullText += text
+                    
+                    if let call = functionCall {
+                        toolIterations += 1
+                        
+                        // Guard against infinite tool loops
+                        if toolIterations > maxToolIterations {
+                            fullText += "\n\n*[Stopped: reached the maximum of \(maxToolIterations) tool calls for this turn.]*"
+                            shouldContinue = false
+                            continue
+                        }
+                        
+                        // Auto-update overlay BEFORE tool execution
+                        let (icon, label) = self.toolDisplayInfo(call: call, iteration: toolIterations)
+                        await MainActor.run {
+                            AgentOverlayManager.shared.startTool(name: call.name, step: toolIterations, maxSteps: maxToolIterations)
+                            self.statusMessage = "\(icon) \(label) (\(toolIterations)/\(maxToolIterations))"
+                        }
+                        
+                        // Execute tool via shared LocalToolExecutor
+                        let (result, screenshotData) = toolExecutor.execute(
+                            toolName: call.name,
+                            args: call.args
+                        )
+                        
+                        // Auto-update overlay AFTER tool execution
+                        await MainActor.run {
+                            AgentOverlayManager.shared.endTool(icon: icon, label: label)
+                        }
+                        
+                        // If screenshot was requested/taken and returned, inject it for the next request
+                        if (call.name == "request_screenshot" || call.name == "take_screenshot"), let ssData = screenshotData {
+                            injectedScreenshotData = ssData
+                        }
+                        
+                        // Add tool call and response to the active exchange history
+                        // Include thoughtSignature for Gemini 3 models
+                        toolExchange.append(GeminiContent(
+                            role: "model",
+                            parts: [GeminiPart(text: nil, inlineData: nil, functionCall: call, functionResponse: nil, thoughtSignature: thoughtSig)]
+                        ))
+                        toolExchange.append(GeminiContent(
+                            role: "user",
+                            parts: [GeminiPart(text: nil, inlineData: nil, functionCall: nil, functionResponse: FunctionResponse(name: call.name, response: ["content": result]), thoughtSignature: nil)]
+                        ))
+                        
+                        // Reset status message temporarily before invoking next turn
+                        await MainActor.run {
+                            self.statusMessage = nil
+                        }
+                    } else {
+                        // No function call returned; we have the final model output
+                        shouldContinue = false
+                    }
+                }
+                
                 await MainActor.run {
                     self.isGenerating = false
+                    self.statusMessage = nil
+                    AgentOverlayManager.shared.isVisible = false
                     onComplete(.success(fullText))
                 }
             } catch {
                 await MainActor.run {
                     self.isGenerating = false
+                    self.statusMessage = nil
+                    AgentOverlayManager.shared.isVisible = false
                     if !(error is CancellationError) {
                         onComplete(.failure(error))
                     }
@@ -102,24 +242,85 @@ final class GeminiService: ObservableObject {
         }
     }
 
-    /// Cancels any in-progress generation.
+    /// Cancels any in-progress generation stream and associated tasks.
     func cancelGeneration() {
         currentTask?.cancel()
         currentTask = nil
         isGenerating = false
+        statusMessage = nil
+        AgentOverlayManager.shared.isVisible = false
+    }
+
+    // MARK: - Tool Display Helpers
+    
+    /// Returns a human-readable (icon, label) pair for a tool call.
+    private func toolDisplayInfo(call: FunctionCall, iteration: Int) -> (String, String) {
+        switch call.name {
+        case "search_files":
+            let query = call.args?["query"] ?? ""
+            return ("🔍", "Searching for '\(query)'")
+        case "read_file":
+            let path = (call.args?["path"] ?? "").components(separatedBy: "/").last ?? ""
+            return ("📖", "Reading \(path)")
+        case "list_directory":
+            let path = (call.args?["path"] ?? "").components(separatedBy: "/").suffix(2).joined(separator: "/")
+            return ("📂", "Listing \(path)")
+        case "get_calendar_events":
+            return ("📅", "Checking calendar")
+        case "request_screenshot":
+            return ("📸", "Loading screenshot")
+        case "take_screenshot":
+            return ("📸", "Capturing screen")
+        case "move_mouse":
+            let x = call.args?["x"] ?? "?"
+            let y = call.args?["y"] ?? "?"
+            return ("🖱️", "Moving to \(x),\(y)")
+        case "click_mouse":
+            return ("👆", "Clicking")
+        case "type_text":
+            let text = call.args?["text"] ?? ""
+            let preview = String(text.prefix(20))
+            return ("⌨️", "Typing '\(preview)\(text.count > 20 ? "…" : "")'")
+        case "execute_shell_command":
+            let cmd = call.args?["command"] ?? ""
+            let preview = String(cmd.prefix(30))
+            return ("💻", "Running: \(preview)\(cmd.count > 30 ? "…" : "")")
+        case "open_application":
+            let app = call.args?["app_name"] ?? ""
+            return ("🚀", "Opening \(app)")
+        case "press_keys":
+            let keys = call.args?["keys"] ?? ""
+            return ("⌨️", "Pressing \(keys)")
+        case "wait":
+            let ms = call.args?["milliseconds"] ?? "1000"
+            return ("⏳", "Waiting \(ms)ms")
+        case "get_frontmost_app_info":
+            return ("📱", "Checking active app")
+        case "update_agent_status":
+            return ("💭", "Updating status")
+        case "read_memory":
+            return ("🧠", "Reading memory")
+        case "update_memory":
+            return ("✍️", "Updating memory")
+        default:
+            return ("⚙️", "Running \(call.name)")
+        }
     }
 
     // MARK: - Private: HTTP + SSE
 
+
     private func performStreamingRequest(
         prompt: String,
         imageData: Data?,
+        injectedScreenshotData: Data?,
         attachments: [ChatAttachment],
         activeContextText: String?,
         conversationHistory: [ChatMessage],
+        toolExchange: [GeminiContent],
         apiKey: String,
         onToken: @escaping @MainActor (String) -> Void
-    ) async throws -> String {
+    ) async throws -> (fullText: String, functionCall: FunctionCall?, thoughtSignature: String?) {
 
         let model = selectedModel.rawValue
         let urlString = "\(baseURL)/\(model):streamGenerateContent?alt=sse"
@@ -134,106 +335,42 @@ final class GeminiService: ObservableObject {
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.timeoutInterval = 120
 
-        // Build the request body
-        let body = buildRequestBody(
-            prompt: prompt,
-            imageData: imageData,
-            attachments: attachments,
-            activeContextText: activeContextText,
-            conversationHistory: conversationHistory
-        )
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        // Stream the response
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw GeminiError.invalidResponse
-        }
-
-        if httpResponse.statusCode != 200 {
-            // Try to read error body
-            var errorBody = ""
-            for try await line in bytes.lines {
-                errorBody += line
-            }
-            throw GeminiError.apiError(statusCode: httpResponse.statusCode, message: errorBody)
-        }
-
-        // Parse SSE stream
-        var fullText = ""
-
-        for try await line in bytes.lines {
-            try Task.checkCancellation()
-
-            guard line.hasPrefix("data: ") else { continue }
-            let jsonString = String(line.dropFirst(6))
-            guard let data = jsonString.data(using: .utf8) else { continue }
-
-            if let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
-                for candidate in chunk.candidates ?? [] {
-                    for part in candidate.content?.parts ?? [] {
-                        if let text = part.text {
-                            fullText += text
-                            await onToken(text)
-                        }
-                    }
-                }
-            }
-        }
-
-        return fullText
-    }
-
-    // MARK: - Request Body Builder
-
-    private func buildRequestBody(
-        prompt: String,
-        imageData: Data?,
-        attachments: [ChatAttachment],
-        activeContextText: String?,
-        conversationHistory: [ChatMessage]
-    ) -> [String: Any] {
-
-        var contents: [[String: Any]] = []
-
-        // Add conversation history (multi-turn)
+        // Build type-safe contents
+        var contents: [GeminiContent] = []
+        
+        // 1. Add conversation history
         for message in conversationHistory {
             let role = message.role == .user ? "user" : "model"
-            contents.append([
-                "role": role,
-                "parts": [["text": message.content]]
-            ])
-        }
-
-        // Build current user message parts
-        var parts: [[String: Any]] = []
-
-        // Add screenshot if available
-        if let imageData = imageData {
-            parts.append([
-                "inline_data": [
-                    "mime_type": "image/jpeg",
-                    "data": imageData.base64EncodedString()
-                ]
-            ])
+            contents.append(GeminiContent(
+                role: role,
+                parts: [GeminiPart(text: message.content, inlineData: nil, functionCall: nil, functionResponse: nil)]
+            ))
         }
         
-        // Add other attachments
-        for attachment in attachments {
-            parts.append([
-                "inline_data": [
-                    "mime_type": attachment.mimeType,
-                    "data": attachment.data.base64EncodedString()
-                ]
-            ])
+        // 2. Build current turn user prompt
+        var userParts: [GeminiPart] = []
+        // Use injected screenshot (from request_screenshot tool) if available, otherwise use original
+        let effectiveImageData = injectedScreenshotData ?? imageData
+        if let imageData = effectiveImageData {
+            userParts.append(GeminiPart(
+                text: nil,
+                inlineData: InlineData(mimeType: "image/jpeg", data: imageData.base64EncodedString()),
+                functionCall: nil,
+                functionResponse: nil
+            ))
         }
-
-        // Final text part with context
+        for attachment in attachments {
+            userParts.append(GeminiPart(
+                text: nil,
+                inlineData: InlineData(mimeType: attachment.mimeType, data: attachment.data.base64EncodedString()),
+                functionCall: nil,
+                functionResponse: nil
+            ))
+        }
+        
         var finalPrompt = prompt
         var contextParts: [String] = []
-        
-        if imageData != nil {
+        if effectiveImageData != nil {
             contextParts.append("a screenshot of my current screen")
         }
         if !attachments.isEmpty {
@@ -253,30 +390,99 @@ final class GeminiService: ObservableObject {
             }
         }
         
-        parts.append(["text": finalPrompt])
+        userParts.append(GeminiPart(
+            text: finalPrompt,
+            inlineData: nil,
+            functionCall: nil,
+            functionResponse: nil
+        ))
+        
+        contents.append(GeminiContent(role: "user", parts: userParts))
+        
+        // 3. Append the active tool exchange history (model calls and function responses)
+        contents.append(contentsOf: toolExchange)
 
-        contents.append([
-            "role": "user",
-            "parts": parts
-        ])
-
-        var body: [String: Any] = ["contents": contents]
+        // Build the request body dictionary
+        var requestBody: [String: Any] = [
+            "contents": try encodeToJSONArray(contents)
+        ]
 
         // Add system instruction
-        body["systemInstruction"] = [
+        requestBody["systemInstruction"] = [
             "parts": [["text": SettingsManager.shared.systemPrompt]]
         ]
 
         // Generation config
-        body["generationConfig"] = [
+        requestBody["generationConfig"] = [
             "temperature": 0.7,
             "topP": 0.95,
             "maxOutputTokens": 8192
         ]
 
-        return body
+        // Add tools for autonomous file access and capabilities
+        requestBody["tools"] = [[
+            "functionDeclarations": toolExecutor.toolDeclarations()
+        ]]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        // Stream the response
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GeminiError.invalidResponse
+        }
+
+        if httpResponse.statusCode != 200 {
+            var errorBody = ""
+            for try await line in bytes.lines {
+                errorBody += line
+            }
+            throw GeminiError.apiError(statusCode: httpResponse.statusCode, message: errorBody)
+        }
+
+        var fullText = ""
+        var pendingFunctionCall: FunctionCall? = nil
+        var pendingThoughtSignature: String? = nil
+
+        for try await line in bytes.lines {
+            try Task.checkCancellation()
+
+            guard line.hasPrefix("data: ") else { continue }
+            let jsonString = String(line.dropFirst(6))
+            guard let data = jsonString.data(using: .utf8) else { continue }
+
+            if let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
+                for candidate in chunk.candidates ?? [] {
+                    for part in candidate.content?.parts ?? [] {
+                        if let text = part.text {
+                            fullText += text
+                            await onToken(text)
+                        }
+                        if let call = part.functionCall {
+                            pendingFunctionCall = call
+                        }
+                        // Capture thought_signature from the part
+                        if let sig = part.thoughtSignature {
+                            pendingThoughtSignature = sig
+                        }
+                    }
+                }
+            }
+        }
+
+        return (fullText, pendingFunctionCall, pendingThoughtSignature)
     }
-    
+
+    private func encodeToJSONArray<T: Encodable>(_ value: T) throws -> [[String: Any]] {
+        let data = try JSONEncoder().encode(value)
+        guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            throw GeminiError.invalidResponse
+        }
+        return array
+    }
+
+
     // MARK: - Token Estimation
     
     /// Estimates the token count for the current context.
@@ -305,11 +511,8 @@ final class GeminiService: ObservableObject {
         
         // Image tokens (Gemini charges ~258 tokens per 256x256 tile)
         if let imgData = imageData {
-            // Rough estimate based on image size
             let imgSize = imgData.count
-            // A typical 1920x1080 JPEG at 70% quality ≈ 200KB
-            // Gemini processes at 768x768 tiles, so ~6 tiles for a full HD image
-            let estimatedTiles = max(1, imgSize / 50_000) // rough heuristic
+            let estimatedTiles = max(1, imgSize / 50_000)
             tokens += estimatedTiles * 258
         }
         
@@ -319,7 +522,6 @@ final class GeminiService: ObservableObject {
                 let estimatedTiles = max(1, attachment.data.count / 50_000)
                 tokens += estimatedTiles * 258
             } else {
-                // Text-based attachments
                 tokens += attachment.data.count / 4
             }
         }
@@ -334,19 +536,26 @@ final class GeminiService: ObservableObject {
 // MARK: - Response Models
 
 private struct StreamChunk: Codable {
+    struct Candidate: Codable {
+        struct Content: Codable {
+            struct Part: Codable {
+                let text: String?
+                let functionCall: FunctionCall?
+                let thoughtSignature: String?
+                
+                enum CodingKeys: String, CodingKey {
+                    case text
+                    case functionCall
+                    case thoughtSignature = "thoughtSignature"
+                }
+            }
+            let parts: [Part]?
+            let role: String?
+        }
+        let content: Content?
+        let finishReason: String?
+    }
     let candidates: [Candidate]?
-}
-
-private struct Candidate: Codable {
-    let content: Content?
-}
-
-private struct Content: Codable {
-    let parts: [Part]?
-}
-
-private struct Part: Codable {
-    let text: String?
 }
 
 // MARK: - Errors

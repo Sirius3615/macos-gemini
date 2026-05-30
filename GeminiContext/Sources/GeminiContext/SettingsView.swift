@@ -12,63 +12,39 @@ struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
     
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedTab) {
-                Spacer().frame(height: 24)
-                
-                Label {
-                    Text("General")
-                } icon: {
-                    Image(systemName: "gearshape.fill")
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(Color.gray)
-                        .cornerRadius(5)
+        TabView(selection: $selectedTab) {
+            GeneralSettingsView()
+                .tabItem {
+                    Label("General", systemImage: "gearshape")
                 }
                 .tag(SettingsTab.general)
-                
-                Label {
-                    Text("Providers & Models")
-                } icon: {
-                    Image(systemName: "cpu.fill")
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(Color.blue)
-                        .cornerRadius(5)
+            
+            ProvidersSettingsView()
+                .tabItem {
+                    Label("Providers & Models", systemImage: "cpu")
                 }
                 .tag(SettingsTab.providers)
-                
-                Label {
-                    Text("Personas")
-                } icon: {
-                    Image(systemName: "person.2.fill")
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(Color.purple)
-                        .cornerRadius(5)
+            
+            PersonasSettingsView()
+                .tabItem {
+                    Label("Personas", systemImage: "person.2")
                 }
                 .tag(SettingsTab.personas)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
-            .toolbar(removing: .sidebarToggle)
-        } detail: {
-            Group {
-                switch selectedTab {
-                case .general:
-                    GeneralSettingsView()
-                case .providers:
-                    ProvidersSettingsView()
-                case .personas:
-                    PersonasSettingsView()
+        }
+        .frame(width: 600, height: 500)
+        .padding()
+        .onAppear {
+            ChatWindowManager.shared.updateActivationPolicy()
+            NSApp.activate(ignoringOtherApps: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "settings" || $0.title == "Settings" }) {
+                    window.makeKeyAndOrderFront(nil)
                 }
             }
-            .padding(.top, 24)
         }
-        .frame(width: 700, height: 550)
-        .onAppear {
-            NSApp.activate(ignoringOtherApps: true)
-            if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "settings" || $0.title == "Settings" }) {
-                window.makeKeyAndOrderFront(nil)
+        .onDisappear {
+            DispatchQueue.main.async {
+                ChatWindowManager.shared.updateActivationPolicy()
             }
         }
     }
@@ -121,23 +97,11 @@ struct GeneralSettingsView: View {
                         Spacer()
                         KeyboardShortcutRecorder(shortcut: $settings.fullChatShortcut)
                     }
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Region Capture")
-                                .font(.system(size: 13, weight: .medium))
-                            Text("Select a screen region to capture")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        KeyboardShortcutRecorder(shortcut: $settings.regionCaptureShortcut)
-                    }
                 }
             } header: {
                 Text("Keyboard Shortcuts")
             } footer: {
-                Text("Click a shortcut to record a new key combination. At least one modifier key (⌘, ⌃, ⌥) is required.")
+                Text("Clickm a shortcut to record a new key combination. At least one modifier key (⌘, ⌃, ⌥) is required.")
             }
             
             Section {
@@ -159,6 +123,29 @@ struct GeneralSettingsView: View {
             } footer: {
                 Text("If you don't interact for this duration, your next message will start a fresh chat.")
             }
+            
+            Section {
+                Toggle("Smart Screenshot Mode", isOn: $settings.smartImageGating)
+                    .toggleStyle(.switch)
+            } header: {
+                Text("Token Optimization")
+            } footer: {
+                Text("When enabled, screenshots are only sent when the AI determines visual context is needed. Saves tokens on text-based queries like coding help, math, or general knowledge.")
+            }
+            
+            Section {
+                HStack {
+                    Text("Persistent Memory")
+                    Spacer()
+                    Button("Open File") {
+                        NSWorkspace.shared.open(MemoryManager.shared.memoryFileURL)
+                    }
+                }
+            } header: {
+                Text("AI Memory")
+            } footer: {
+                Text("The AI uses this markdown file to remember things about you. You can edit it manually or ask the AI to update it.")
+            }
         }
         .formStyle(.grouped)
     }
@@ -166,6 +153,7 @@ struct GeneralSettingsView: View {
 
 struct ProvidersSettingsView: View {
     @StateObject private var settings = SettingsManager.shared
+    @StateObject private var ollamaService = OllamaService()
     
     var body: some View {
         Form {
@@ -193,40 +181,118 @@ struct ProvidersSettingsView: View {
             }
             
             Section {
+                HStack {
+                    Image(systemName: "desktopcomputer").foregroundStyle(.cyan).frame(width: 20)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Ollama (Local)")
+                            .font(.system(size: 13, weight: .medium))
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(ollamaService.isConnected ? .green : .red)
+                                .frame(width: 6, height: 6)
+                            Text(ollamaService.isConnected ? "Connected" : "Not connected")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        Task { await ollamaService.fetchAvailableModels() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Refresh connection")
+                }
+                
+                HStack {
+                    Text("Endpoint")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .leading)
+                    TextField("http://localhost:11434", text: $settings.ollamaEndpoint)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12))
+                        .onChange(of: settings.ollamaEndpoint) { _, _ in
+                            Task { await ollamaService.fetchAvailableModels() }
+                        }
+                }
+                
+                HStack {
+                    Text("Model")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .leading)
+                    if !ollamaService.availableModels.isEmpty {
+                        Picker("", selection: $settings.ollamaModelName) {
+                            Text("Select a model...").tag("")
+                            ForEach(ollamaService.availableModels) { model in
+                                HStack {
+                                    Text(model.displayName)
+                                    if model.supportsVision {
+                                        Image(systemName: "eye.fill")
+                                            .font(.system(size: 8))
+                                    }
+                                    Text(model.sizeLabel)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .tag(model.name)
+                            }
+                        }
+                        .labelsHidden()
+                    } else {
+                        TextField("Model name (e.g. llama3, mistral)", text: $settings.ollamaModelName)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12))
+                    }
+                }
+            } header: {
+                Text("Local Model")
+            } footer: {
+                Text("Requires Ollama running locally. Install from ollama.com. No API key needed.")
+            }
+            
+            Section {
                 Picker("Active Provider", selection: $settings.activeProvider) {
                     if !settings.geminiApiKey.isEmpty { Label("Google Gemini", systemImage: "sparkles").tag(AIProvider.gemini) }
                     if !settings.openaiApiKey.isEmpty { Label("OpenAI", systemImage: "o.square").tag(AIProvider.openai) }
                     if !settings.claudeApiKey.isEmpty { Label("Anthropic Claude", systemImage: "c.square").tag(AIProvider.claude) }
                     if !settings.deepseekApiKey.isEmpty { Label("DeepSeek", systemImage: "d.circle").tag(AIProvider.deepseek) }
+                    if !settings.ollamaModelName.isEmpty { Label("Ollama (Local)", systemImage: "desktopcomputer").tag(AIProvider.ollama) }
                     
-                    if settings.geminiApiKey.isEmpty && settings.openaiApiKey.isEmpty && settings.claudeApiKey.isEmpty && settings.deepseekApiKey.isEmpty {
-                        Text("No API Key configured").tag(AIProvider.gemini)
+                    if settings.geminiApiKey.isEmpty && settings.openaiApiKey.isEmpty && settings.claudeApiKey.isEmpty && settings.deepseekApiKey.isEmpty && settings.ollamaModelName.isEmpty {
+                        Text("No provider configured").tag(AIProvider.gemini)
                     }
                 }
                 
-                Picker("Preferred Model", selection: $settings.selectedModelId) {
-                    switch settings.activeProvider {
-                    case .gemini:
-                        Text("Gemini 3.1 Pro").tag("gemini-3.1-pro-preview")
-                        Text("Gemini 3 Flash").tag("gemini-3-flash-preview")
-                        Text("Gemini 3.1 Flash-Lite").tag("gemini-3.1-flash-lite")
-                        Text("Gemini 2.5 Pro").tag("gemini-2.5-pro")
-                        Text("Gemini 2.5 Flash").tag("gemini-2.5-flash")
-                    case .openai:
-                        Text("GPT-5.5").tag("gpt-5.5")
-                        Text("GPT-5.5 Pro").tag("gpt-5.5-pro")
-                        Text("GPT-5.4 Mini").tag("gpt-5.4-mini")
-                        Text("GPT-5.4 Nano").tag("gpt-5.4-nano")
-                        Text("GPT-4.1").tag("gpt-4.1")
-                        Text("GPT-4.1 Mini").tag("gpt-4.1-mini")
-                        Text("GPT-4.1 Nano").tag("gpt-4.1-nano")
-                    case .claude:
-                        Text("Claude Opus 4.6").tag("claude-opus-4-6")
-                        Text("Claude Sonnet 4.6").tag("claude-sonnet-4-6")
-                        Text("Claude Haiku 4.5").tag("claude-haiku-4-5")
-                    case .deepseek:
-                        Text("DeepSeek-V4-Pro").tag("deepseek-v4-pro")
-                        Text("DeepSeek-V4-Flash").tag("deepseek-v4-flash")
+                if settings.activeProvider != .ollama {
+                    Picker("Preferred Model", selection: $settings.selectedModelId) {
+                        switch settings.activeProvider {
+                        case .gemini:
+                            Text("Gemini 3.1 Pro").tag("gemini-3.1-pro-preview")
+                            Text("Gemini 3 Flash").tag("gemini-3-flash-preview")
+                            Text("Gemini 3.1 Flash-Lite").tag("gemini-3.1-flash-lite")
+                            Text("Gemini 2.5 Pro").tag("gemini-2.5-pro")
+                            Text("Gemini 2.5 Flash").tag("gemini-2.5-flash")
+                        case .openai:
+                            Text("GPT-5.5").tag("gpt-5.5")
+                            Text("GPT-5.5 Pro").tag("gpt-5.5-pro")
+                            Text("GPT-5.4 Mini").tag("gpt-5.4-mini")
+                            Text("GPT-5.4 Nano").tag("gpt-5.4-nano")
+                            Text("GPT-4.1").tag("gpt-4.1")
+                            Text("GPT-4.1 Mini").tag("gpt-4.1-mini")
+                            Text("GPT-4.1 Nano").tag("gpt-4.1-nano")
+                        case .claude:
+                            Text("Claude Opus 4.6").tag("claude-opus-4-6")
+                            Text("Claude Sonnet 4.6").tag("claude-sonnet-4-6")
+                            Text("Claude Haiku 4.5").tag("claude-haiku-4-5")
+                        case .deepseek:
+                            Text("DeepSeek-V4-Pro").tag("deepseek-v4-pro")
+                            Text("DeepSeek-V4-Flash").tag("deepseek-v4-flash")
+                        case .ollama:
+                            EmptyView()
+                        }
                     }
                 }
             } header: {
@@ -234,6 +300,9 @@ struct ProvidersSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear {
+            Task { await ollamaService.fetchAvailableModels() }
+        }
     }
 }
 

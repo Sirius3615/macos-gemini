@@ -2,12 +2,40 @@
   "": {
     "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/master.swiftdeps"
   },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ActiveWindowReader.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ActiveWindowReader.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ActiveWindowReader.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ActiveWindowReader~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ActiveWindowReader.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ActiveWindowReader.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AgentOverlayManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayManager.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AgentOverlayView.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayView.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayView.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayView~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayView.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AgentOverlayView.dia"
+  },
   "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/AppDelegate.swift": {
     "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.d",
     "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swift.o",
     "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate~partial.swiftmodule",
     "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.swiftdeps",
     "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/AppDelegate.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/CalendarService.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/CalendarService.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/CalendarService.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/CalendarService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/CalendarService.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/CalendarService.dia"
   },
   "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatHistoryManager.swift": {
     "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatHistoryManager.d",
@@ -22,6 +50,13 @@
     "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView~partial.swiftmodule",
     "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.swiftdeps",
     "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatView.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/ChatWindowManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatWindowManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatWindowManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatWindowManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatWindowManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/ChatWindowManager.dia"
   },
   "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/FloatingPanel.swift": {
     "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/FloatingPanel.d",
@@ -58,12 +93,33 @@
     "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.swiftdeps",
     "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/KeyboardShortcutRecorder.dia"
   },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/LocalToolExecutor.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/LocalToolExecutor.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/LocalToolExecutor.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/LocalToolExecutor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/LocalToolExecutor.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/LocalToolExecutor.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MemoryManager.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MemoryManager.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MemoryManager.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MemoryManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MemoryManager.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MemoryManager.dia"
+  },
   "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/MenuBarView.swift": {
     "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.d",
     "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swift.o",
     "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView~partial.swiftmodule",
     "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.swiftdeps",
     "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/MenuBarView.dia"
+  },
+  "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/OllamaService.swift": {
+    "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/OllamaService.d",
+    "object": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/OllamaService.swift.o",
+    "swiftmodule": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/OllamaService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/OllamaService.swiftdeps",
+    "diagnostics": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/OllamaService.dia"
   },
   "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/Sources/GeminiContext/PermissionsManager.swift": {
     "dependencies": "/Users/ivanbegonja/Documents/macos gemini/GeminiContext/.build/arm64-apple-macosx/debug/GeminiContext.build/PermissionsManager.d",

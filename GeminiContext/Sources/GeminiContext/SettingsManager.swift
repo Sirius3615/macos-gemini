@@ -10,6 +10,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case openai = "OpenAI"
     case claude = "Claude"
     case deepseek = "DeepSeek"
+    case ollama = "Ollama"
     
     var id: String { rawValue }
     
@@ -19,6 +20,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .openai: return "o.circle"
         case .claude: return "c.circle"
         case .deepseek: return "d.circle"
+        case .ollama: return "desktopcomputer"
         }
     }
 }
@@ -32,9 +34,6 @@ struct KeyboardShortcutConfig: Codable, Equatable {
     static let defaultPill = KeyboardShortcutConfig(keyCode: UInt16(kVK_Space), modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
     /// Default full chat shortcut: Cmd+Shift+G
     static let defaultFullChat = KeyboardShortcutConfig(keyCode: UInt16(kVK_ANSI_G), modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
-    /// Default region capture shortcut: Cmd+Shift+R
-    static let defaultRegionCapture = KeyboardShortcutConfig(keyCode: UInt16(kVK_ANSI_R), modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
-    
     var modifierFlags: NSEvent.ModifierFlags {
         NSEvent.ModifierFlags(rawValue: modifiers)
     }
@@ -143,6 +142,29 @@ struct PersonaConfig: Codable, Identifiable, Equatable {
             When shown a screenshot, analyze it carefully and provide helpful, contextual responses. \
             Use Markdown formatting in your responses including headers, lists, code blocks, and bold/italic text. \
             When mathematical expressions are relevant, use LaTeX notation wrapped in $ for inline and $$ for display math.
+
+            ## Autonomous Computer Use
+            You have full control of the user's Mac. For tasks that require interacting with applications:
+
+            1. **Open apps** with `open_application` (e.g., Pages, Finder, Preview, TextEdit, Safari, Numbers).
+            2. **Wait** 1000-2000ms with `wait` for the app/UI to load.
+            3. **Screenshot** with `take_screenshot` to see what's on screen now.
+            4. **Analyze** the screenshot to understand the current UI state.
+            5. **Act** using `click_mouse`, `type_text`, `press_keys`, or `move_mouse`.
+            6. **Repeat** steps 2-5 until the task is complete.
+
+            Always follow this pattern: **act → wait → screenshot → analyze → act again**. \
+            Never assume the UI has changed — always take a screenshot to verify after every action.
+
+            Use `press_keys` for keyboard shortcuts: 'command+o' (open), 'command+s' (save), \
+            'command+n' (new document), 'command+c' (copy), 'command+v' (paste), 'return' (confirm), 'escape' (cancel).
+
+            Use `get_frontmost_app_info` to confirm which app is active before interacting.
+
+            Use `update_agent_status` to communicate your thinking on multi-step tasks so the user can follow along.
+
+            For reading documents: find the file with `search_files` or `list_directory`, then either `read_file` (for text) \
+            or `open_application` + `take_screenshot` (for rich documents like .pages, .docx, .pdf).
             """
         ),
         PersonaConfig(
@@ -189,9 +211,11 @@ final class SettingsManager: ObservableObject {
     private let shortcutEnabledKey = "isShortcutEnabled"
     private let pillShortcutKey = "pillShortcut"
     private let fullChatShortcutKey = "fullChatShortcut"
-    private let regionCaptureShortcutKey = "regionCaptureShortcut"
     private let personasKey = "customPersonas"
     private let activePersonaIndexKey = "activePersonaIndex"
+    private let ollamaEndpointKey = "ollamaEndpoint"
+    private let ollamaModelNameKey = "ollamaModelName"
+    private let smartImageGatingKey = "smartImageGating"
 
     @Published var activeProvider: AIProvider {
         didSet { UserDefaults.standard.set(activeProvider.rawValue, forKey: providerKey) }
@@ -208,6 +232,14 @@ final class SettingsManager: ObservableObject {
     }
     @Published var deepseekApiKey: String {
         didSet { saveAPIKeyToKeychain(deepseekApiKey, provider: .deepseek) }
+    }
+
+    @Published var ollamaEndpoint: String {
+        didSet { UserDefaults.standard.set(ollamaEndpoint, forKey: ollamaEndpointKey) }
+    }
+    
+    @Published var ollamaModelName: String {
+        didSet { UserDefaults.standard.set(ollamaModelName, forKey: ollamaModelNameKey) }
     }
 
     @Published var selectedModelId: String {
@@ -244,12 +276,12 @@ final class SettingsManager: ObservableObject {
         didSet { saveShortcut(pillShortcut, forKey: pillShortcutKey) }
     }
     
-    @Published var fullChatShortcut: KeyboardShortcutConfig {
-        didSet { saveShortcut(fullChatShortcut, forKey: fullChatShortcutKey) }
+    @Published var smartImageGating: Bool {
+        didSet { UserDefaults.standard.set(smartImageGating, forKey: smartImageGatingKey) }
     }
     
-    @Published var regionCaptureShortcut: KeyboardShortcutConfig {
-        didSet { saveShortcut(regionCaptureShortcut, forKey: regionCaptureShortcutKey) }
+    @Published var fullChatShortcut: KeyboardShortcutConfig {
+        didSet { saveShortcut(fullChatShortcut, forKey: fullChatShortcutKey) }
     }
     
     // MARK: - Personas
@@ -267,10 +299,19 @@ final class SettingsManager: ObservableObject {
     /// The system prompt from the active persona.
     var systemPrompt: String {
         get {
-            guard activePersonaIndex >= 0, activePersonaIndex < personas.count else {
-                return PersonaConfig.defaultPersonas[0].systemPrompt
+            var prompt = ""
+            if activePersonaIndex >= 0 && activePersonaIndex < personas.count {
+                prompt = personas[activePersonaIndex].systemPrompt
+            } else {
+                prompt = PersonaConfig.defaultPersonas[0].systemPrompt
             }
-            return personas[activePersonaIndex].systemPrompt
+            
+            let memoryContent = MemoryManager.shared.readMemory()
+            if !memoryContent.isEmpty {
+                prompt += "\n\n## User Memory\nHere is information you have remembered about the user. You can use update_memory to modify this.\n" + memoryContent
+            }
+            
+            return prompt
         }
     }
     
@@ -293,6 +334,7 @@ final class SettingsManager: ObservableObject {
         case .openai: return !openaiApiKey.isEmpty
         case .claude: return !claudeApiKey.isEmpty
         case .deepseek: return !deepseekApiKey.isEmpty
+        case .ollama: return !ollamaModelName.isEmpty
         }
     }
 
@@ -302,6 +344,7 @@ final class SettingsManager: ObservableObject {
         case .openai: return openaiApiKey
         case .claude: return claudeApiKey
         case .deepseek: return deepseekApiKey
+        case .ollama: return "" // Ollama doesn't need an API key
         }
     }
 
@@ -322,7 +365,9 @@ final class SettingsManager: ObservableObject {
         self.launchAtLogin = SMAppService.mainApp.status == .enabled
         self.pillShortcut = SettingsManager.loadShortcut(forKey: "pillShortcut") ?? .defaultPill
         self.fullChatShortcut = SettingsManager.loadShortcut(forKey: "fullChatShortcut") ?? .defaultFullChat
-        self.regionCaptureShortcut = SettingsManager.loadShortcut(forKey: "regionCaptureShortcut") ?? .defaultRegionCapture
+        self.smartImageGating = UserDefaults.standard.object(forKey: smartImageGatingKey) as? Bool ?? true
+        self.ollamaEndpoint = UserDefaults.standard.string(forKey: ollamaEndpointKey) ?? "http://localhost:11434"
+        self.ollamaModelName = UserDefaults.standard.string(forKey: ollamaModelNameKey) ?? ""
         
         // Load personas
         self.activePersonaIndex = UserDefaults.standard.object(forKey: activePersonaIndexKey) as? Int ?? 0

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import EventKit
 
 /// Manages checking and prompting for required system permissions:
 /// - Accessibility (for global mouse event monitoring)
@@ -8,6 +9,7 @@ final class PermissionsManager: ObservableObject {
 
     @Published var isAccessibilityGranted: Bool = false
     @Published var isScreenRecordingGranted: Bool = false
+    @Published var isCalendarGranted: Bool = false
 
     private var timer: Timer?
 
@@ -19,6 +21,7 @@ final class PermissionsManager: ObservableObject {
     func checkAllPermissions() {
         checkAccessibility(prompt: false)
         checkScreenRecording()
+        checkCalendar()
     }
 
     /// Starts a timer to poll for permissions if they are not yet granted.
@@ -28,8 +31,8 @@ final class PermissionsManager: ObservableObject {
             guard let self = self else { return }
             self.checkAllPermissions()
             
-            // Stop polling if both are granted
-            if self.isAccessibilityGranted && self.isScreenRecordingGranted {
+            // Stop polling if all are granted
+            if self.isAccessibilityGranted && self.isScreenRecordingGranted && self.isCalendarGranted {
                 self.stopPolling()
             }
         }
@@ -93,5 +96,42 @@ final class PermissionsManager: ObservableObject {
             NSWorkspace.shared.open(url)
         }
         startPolling() // Ensure we are polling after they open settings
+    }
+
+    // MARK: - Calendar
+
+    /// Checks if Calendar permission is granted.
+    func checkCalendar() {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        let granted: Bool
+        if #available(macOS 14.0, *) {
+            granted = status == .fullAccess
+        } else {
+            granted = status == .authorized
+        }
+        if isCalendarGranted != granted {
+            isCalendarGranted = granted
+        }
+    }
+
+    /// Requests calendar access and starts polling for updates.
+    func requestCalendarAccess() {
+        Task {
+            let granted = await CalendarService.shared.requestAccess()
+            await MainActor.run {
+                isCalendarGranted = granted
+            }
+        }
+        startPolling()
+    }
+
+    /// Opens System Settings to the Calendar privacy pane.
+    func openCalendarSettings() {
+        // First attempt to request access (shows system dialog)
+        requestCalendarAccess()
+        // Also open the settings pane
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
